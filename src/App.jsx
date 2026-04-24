@@ -149,7 +149,7 @@ const useShared = (key, def) => {
 }
 
 // ─────────────────────────────────────────────────────────
-// AI SUGGESTIONS (Anthropic API)
+// AI SUGGESTIONS (Gemini API)
 // ─────────────────────────────────────────────────────────
 const aiSuggest = async (name, type) => {
   const isRM = type === 'raw'
@@ -162,28 +162,26 @@ Rules: food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggeta
 {"category":"","sub_category":"","food_type":"Vegetarian"}
 food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. Use realistic restaurant categories.`
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY || '',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-calls': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 400,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  })
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 400 },
+      }),
+    }
+  )
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `API error ${res.status}`)
+    throw new Error(err?.error?.message || `Gemini API error ${res.status}`)
   }
 
   const data = await res.json()
-  const txt  = (data.content||[]).map(c => c.text||'').join('').trim()
+  const txt  = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
   return JSON.parse(txt.replace(/```json\n?|```/g, '').trim())
 }
 
