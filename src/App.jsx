@@ -149,7 +149,7 @@ const useShared = (key, def) => {
 }
 
 // ─────────────────────────────────────────────────────────
-// AI SUGGESTIONS (Gemini API)
+// AI SUGGESTIONS (Anthropic API)
 // ─────────────────────────────────────────────────────────
 const aiSuggest = async (name, type) => {
   const isRM = type === 'raw'
@@ -164,7 +164,7 @@ food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. 
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
