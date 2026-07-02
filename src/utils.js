@@ -80,7 +80,6 @@ export const calcPricing = (mi, rms, ints, pc) => {
   const spm  = mi?.sp_multiplier_override ?? effVal('sp_multiplier', mi?.id, mi?.category, pc).v
   const pkg  = mi?.packaging_cost_override ?? effVal('packaging_cost', mi?.id, mi?.category, pc).v
   const dm   = mi?.delivery_markup_override ?? effVal('delivery_markup', mi?.id, mi?.category, pc).v
-  const comm = pc?.global?.delivery_commission ?? 25
 
   const sugg_sp = Math.round((food * spm) / 5) * 5
   const sp      = mi?.selling_price_override ?? sugg_sp
@@ -93,7 +92,7 @@ export const calcPricing = (mi, rms, ints, pc) => {
 
   const pct           = sp > 0 ? (food / sp) * 100 : 0
   const takeaway_pct  = tp > 0 ? ((food + pkg) / tp) * 100 : 0
-  const delivery_pct  = dp > 0 ? ((food + pkg) / (dp * (1 - comm / 100))) * 100 : 0
+  const delivery_pct  = dp > 0 ? ((food + pkg) / (dp * (1 - dm / 100))) * 100 : 0
 
   return { 
     food, 

@@ -381,11 +381,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
 export const SettingsPage = ({pc, setPc, mis}) => {
-  const [draft, setDraft]     = useState(()=>{
-    const copy = JSON.parse(JSON.stringify(pc))
-    if (copy.global.delivery_commission == null) copy.global.delivery_commission = 25
-    return copy
-  })
+  const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
   const isMobile              = useIsMobile()
@@ -410,7 +406,6 @@ export const SettingsPage = ({pc, setPc, mis}) => {
     {k:'sp_multiplier',l:'SP Multiplier',u:'×',step:'0.1'},
     {k:'packaging_cost',l:'Packaging Cost',u:'₹',step:'1'},
     {k:'delivery_markup',l:'Delivery Markup',u:'%',step:'1'},
-    {k:'delivery_commission',l:'Aggregator Commission',u:'%',step:'1'},
   ]
   const cats = [...new Set(mis.map(m=>m.category).filter(Boolean))].sort()
 

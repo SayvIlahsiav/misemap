@@ -157,7 +157,6 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const act_spm = f.sp_multiplier_override ?? eff_spm.v
   const act_pkg = f.packaging_cost_override ?? eff_pkg.v
   const act_dm  = f.delivery_markup_override ?? eff_dm.v
-  const comm    = pc.global.delivery_commission ?? 25
   const sugg_sp = Math.round((food * act_spm) / 5) * 5
   const sugg_pct = sugg_sp > 0 ? (food / sugg_sp) * 100 : 0
   const sp  = f.selling_price_override ?? sugg_sp
@@ -167,7 +166,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const dp  = f.delivery_price_override ?? sugg_dp
   const pct = sp>0?(food/sp)*100:0
   const takeaway_pct = tp>0?((food+act_pkg)/tp)*100:0
-  const delivery_pct = dp>0?((food+act_pkg)/(dp*(1-comm/100)))*100:0
+  const delivery_pct = dp>0?((food+act_pkg)/(dp*(1-act_dm/100)))*100:0
   const nut = miNut(f,rms,ints)
   const threshold = pc.global.fc_alert_threshold
   const valid = f.name&&f.ingredients.length>0
