@@ -3,7 +3,8 @@ import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react'
-import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel } from './UIPrimitives.jsx'
+import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
 import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
@@ -508,11 +509,31 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis}) => {
+export const SettingsPage = ({pc, setPc, mis, profile, cafe}) => {
+  const { renameCafe } = useAuth()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
   const isMobile              = useIsMobile()
+
+  const [cafeName, setCafeName] = useState(cafe?.name || '')
+  const [copied, setCopied] = useState(false)
+
+  const handleRenameCafe = async () => {
+    try {
+      await renameCafe(cafeName)
+      alert('Cafe renamed successfully!')
+    } catch (e) {
+      alert(e.message || 'Failed to rename cafe')
+    }
+  }
+
+  const handleCopyId = () => {
+    if (!cafe?.id) return
+    navigator.clipboard.writeText(cafe.id)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const updG   = (k,v) => setDraft(d=>({...d,global:{...d.global,[k]:parseFloat(v)||0}}))
   const updCat = (cat,k,v) => setDraft(d=>{
@@ -577,6 +598,37 @@ export const SettingsPage = ({pc, setPc, mis}) => {
           <Btn ch='Save All Settings' v='primary' onClick={saveGlobal}/>
         </div>
       </div>
+
+      <Card title='Cafe Profile (Multi-Tenancy)'>
+        <div style={{display:'flex', flexDirection:'column', gap:16}}>
+          <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
+            <div>
+              <Label>Cafe Name</Label>
+              <div style={{display:'flex', gap:8, marginTop: 4}}>
+                <input type='text' value={cafeName} onChange={e => setCafeName(e.target.value)} disabled={profile?.role !== 'owner'}
+                  style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#1a1a1a', background:profile?.role !== 'owner' ? '#f9fafb' : '#fff', outline:'none'}}/>
+                {profile?.role === 'owner' && (
+                  <Btn ch='Save' onClick={handleRenameCafe} v='secondary' sz='md' disabled={!cafeName.trim() || cafeName === cafe?.name}/>
+                )}
+              </div>
+            </div>
+            <div>
+              <Label>Cafe ID (Share to invite members)</Label>
+              <div style={{display:'flex', gap:8, marginTop: 4}}>
+                <input type='text' value={cafe?.id || ''} readOnly
+                  style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#6b7280', background:'#f9fafb', outline:'none', fontFamily:'monospace'}}/>
+                <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v='secondary' sz='md'/>
+              </div>
+            </div>
+          </div>
+          <InfoBox color='gray'>
+            Your role: <span style={{fontWeight:700, color:'#0d9488'}}>{profile?.role?.toUpperCase()}</span>. 
+            {profile?.role === 'owner' 
+              ? ' You can rename the cafe. Other team members can join this workspace using the Cafe ID above.' 
+              : ' Only the owner can rename the cafe. Contact your administrator to make changes.'}
+          </InfoBox>
+        </div>
+      </Card>
 
       <Card title='Global Defaults'>
         <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12}}>

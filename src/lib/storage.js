@@ -20,25 +20,38 @@ export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // ─── Key-value storage API (mirrors Claude artifact window.storage) ────────
 export const storage = {
-  async get(key) {
+  async get(key, cafeId) {
+    if (!cafeId) return null
     const { data, error } = await supabase
       .from('kv_store')
       .select('value')
       .eq('key', key)
+      .eq('cafe_id', cafeId)
       .maybeSingle()
     if (error) throw error
     return data ? data.value : null
   },
 
-  async set(key, value) {
+  async set(key, value, cafeId) {
+    if (!cafeId) return
     const { error } = await supabase
       .from('kv_store')
-      .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+      .upsert({
+        key,
+        value,
+        cafe_id: cafeId,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'cafe_id,key' })
     if (error) throw error
   },
 
-  async delete(key) {
-    const { error } = await supabase.from('kv_store').delete().eq('key', key)
+  async delete(key, cafeId) {
+    if (!cafeId) return
+    const { error } = await supabase
+      .from('kv_store')
+      .delete()
+      .eq('key', key)
+      .eq('cafe_id', cafeId)
     if (error) throw error
   },
 }

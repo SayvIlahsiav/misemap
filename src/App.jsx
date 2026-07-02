@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X
+  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut
 } from 'lucide-react'
 import { useShared } from './hooks/useShared.js'
 import { useIsMobile } from './hooks/useIsMobile.js'
 import { SK, DEFAULT_PC } from './constants.js'
 import { Dashboard, RMPage, IntPage, MIPage, SettingsPage } from './components/pages.jsx'
+import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import AuthPortal from './components/AuthPortal.jsx'
 
 const getTabFromPath = () => {
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
@@ -15,23 +17,25 @@ const getTabFromPath = () => {
 }
 
 export default function App() {
-  const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [])
-  const [ints, setInts, intsOk] = useShared(SK.int, [])
-  const [mis,  setMis,  misOk]  = useShared(SK.mi,  [])
-  const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC)
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}
+
+function AppContent() {
+  const { user, profile, cafe, loading: authLoading, signOut } = useAuth()
+  const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], cafe?.id)
+  const [ints, setInts, intsOk] = useShared(SK.int, [], cafe?.id)
+  const [mis,  setMis,  misOk]  = useShared(SK.mi,  [], cafe?.id)
+  const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC, cafe?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const isMobile = useIsMobile()
-  const loading = !rmsOk||!intsOk||!misOk||!pcOk
-
-  const NAV = [
-    {id:'dashboard',     icon:LayoutDashboard,  label:'Dashboard'},
-    {id:'raw',           icon:Package,           label:'Raw Materials'},
-    {id:'intermediates', icon:FlaskConical,      label:'Intermediates'},
-    {id:'menu',          icon:UtensilsCrossed,   label:'Menu Items'},
-    {id:'settings',      icon:Settings,          label:'Settings'},
-  ]
+  const authenticated = !!user && !!cafe
+  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk)
 
   useEffect(() => {
     const handlePopState = () => {
@@ -50,15 +54,40 @@ export default function App() {
     setMobileMenuOpen(false)
   }
 
-  if (loading) return (
+  // 1. Loading state for Auth Session checking
+  if (authLoading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14}}>
       <div style={{background:'#0d9488',borderRadius:16,padding:14,display:'flex'}}>
         <ChefHat size={32} style={{color:'#fff'}}/>
       </div>
       <div style={{fontSize:15,fontWeight:600,color:'#374151'}}>Loading MiseMap…</div>
-      <div style={{fontSize:12,color:'#9ca3af'}}>Connecting to your shared database</div>
+      <div style={{fontSize:12,color:'#9ca3af'}}>Checking authentication session...</div>
     </div>
   )
+
+  // 2. Redirect to Auth & Onboarding if not connected to a cafe
+  if (!authenticated) {
+    return <AuthPortal />
+  }
+
+  // 3. Loading state for Cafe Data fetching
+  if (loading) return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14}}>
+      <div style={{background:'#0d9488',borderRadius:16,padding:14,display:'flex'}}>
+        <ChefHat size={32} style={{color:'#fff'}}/>
+      </div>
+      <div style={{fontSize:15,fontWeight:600,color:'#374151'}}>Loading {cafe?.name}…</div>
+      <div style={{fontSize:12,color:'#9ca3af'}}>Syncing kitchen ingredients and costing data...</div>
+    </div>
+  )
+
+  const NAV = [
+    {id:'dashboard',     icon:LayoutDashboard,  label:'Dashboard'},
+    {id:'raw',           icon:Package,           label:'Raw Materials'},
+    {id:'intermediates', icon:FlaskConical,      label:'Intermediates'},
+    {id:'menu',          icon:UtensilsCrossed,   label:'Menu Items'},
+    {id:'settings',      icon:Settings,          label:'Settings'},
+  ]
 
   const sidebarStyle = isMobile ? {
     position: 'fixed',
@@ -138,8 +167,24 @@ export default function App() {
           </button>
         ))}
 
-        <div style={{marginTop:'auto',padding:'12px 8px 0',borderTop:'1px solid #f5f5f5'}}>
-          <div style={{fontSize:10,color:'#d1d5db',textAlign:'center',lineHeight:1.5}}>MiseMap · Data shared via Supabase</div>
+        {/* Cafe Tenant & User Information Card */}
+        <div style={{marginTop:'auto',padding:'12px 8px 0',borderTop:'1px solid #f5f5f5', display:'flex', flexDirection:'column', gap:10}}>
+          <div style={{display:'flex', flexDirection:'column', gap:2, padding:'8px 10px', background:'#fafafa', borderRadius:10, border:'1px solid #f0f0f0'}}>
+            <span style={{fontWeight:700, fontSize:12, color:'#1f2937', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{cafe?.name}</span>
+            <span style={{fontSize:11, color:'#6b7280', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{user?.email}</span>
+            <span style={{fontSize:9, fontWeight:800, color:'#0d9488', textTransform:'uppercase', letterSpacing:'0.05em', marginTop:2}}>
+              {profile?.role}
+            </span>
+          </div>
+          <button onClick={signOut}
+            style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'8px 10px',borderRadius:8,border:'1px solid #fee2e2',
+              background:'#fef2f2',color:'#b91c1c',cursor:'pointer',fontSize:12,fontWeight:600,transition:'all 0.15s',width:'100%'}}
+            onMouseEnter={e => { e.currentTarget.style.background = '#fde2e2' }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fef2f2' }}>
+            <LogOut size={13}/>
+            Sign Out
+          </button>
+          <div style={{fontSize:9,color:'#d1d5db',textAlign:'center'}}>MiseMap · Shared via Supabase</div>
         </div>
       </div>
 
@@ -149,7 +194,7 @@ export default function App() {
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} cafe={cafe}/>}
       </div>
     </div>
   )
