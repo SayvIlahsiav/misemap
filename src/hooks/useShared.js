@@ -20,9 +20,12 @@ export const useShared = (key, def) => {
       try {
         const raw = await storage.get(key)
         if (raw && active) {
-          const parsed = JSON.parse(raw)
+          let parsed = JSON.parse(raw)
+          if (Array.isArray(parsed)) {
+            parsed = parsed.flat(5).filter(item => item && typeof item === 'object' && !Array.isArray(item))
+          }
           setD(parsed)
-          localStorage.setItem(key, raw)
+          localStorage.setItem(key, JSON.stringify(parsed))
         }
       } catch (e) {
         console.warn('[useShared] Supabase load error, using local fallback:', key, e)
