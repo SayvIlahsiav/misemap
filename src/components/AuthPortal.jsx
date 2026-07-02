@@ -17,7 +17,7 @@ export default function AuthPortal() {
   
   // Auth state
   const [isSignUp, setIsSignUp] = useState(false)
-  const [usernameOrEmail, setUsernameOrEmail] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -35,7 +35,7 @@ export default function AuthPortal() {
     setError('')
     setSuccessMsg('')
     
-    if (!usernameOrEmail.trim() || !password) {
+    if (!email.trim() || !password) {
       setError('Please fill in all fields.')
       return
     }
@@ -54,12 +54,12 @@ export default function AuthPortal() {
     setLoading(true)
     try {
       if (isSignUp) {
-        const res = await signUp(usernameOrEmail, password)
+        const res = await signUp(email, password)
         if (res && !res.session) {
           setSuccessMsg('Account created! Please check your email inbox to verify your account.')
         }
       } else {
-        await signIn(usernameOrEmail, password)
+        await signIn(email, password)
       }
     } catch (err) {
       console.error(err)
@@ -128,14 +128,14 @@ export default function AuthPortal() {
   const renderAuthForm = () => (
     <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Username or Email</label>
+        <label style={{ fontSize: 11, fontWeight: 700, color: '#4b5563', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</label>
         <div style={{ position: 'relative' }}>
           <Mail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
           <input
-            type="text"
-            value={usernameOrEmail}
-            onChange={(e) => setUsernameOrEmail(e.target.value)}
-            placeholder="e.g. chef1 or chef@misemap.com"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="chef@misemap.com"
             disabled={loading}
             style={{
               width: '100%',
@@ -266,10 +266,6 @@ export default function AuthPortal() {
         >
           {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
         </button>
-      </div>
-
-      <div style={{ padding: '10px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, color: '#64748b', fontSize: 11, lineHeight: 1.4, textAlign: 'center' }}>
-        <strong>Testing Tip:</strong> If email verification is disabled in your Supabase dashboard, you can type any simple username to register and login instantly.
       </div>
     </form>
   )

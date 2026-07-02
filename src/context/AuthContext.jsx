@@ -146,15 +146,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
-  const convertUsername = (input) => {
-    const trimmed = input.trim()
-    return trimmed.includes('@') ? trimmed : `${trimmed}@local.misemap.com`
-  }
-
-  const signIn = async (usernameOrEmail, password) => {
+  const signIn = async (email, password) => {
     setLoading(true)
-    const email = convertUsername(usernameOrEmail)
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     if (error) {
       setLoading(false)
       throw error
@@ -162,10 +156,9 @@ export const AuthProvider = ({ children }) => {
     return data
   }
 
-  const signUp = async (usernameOrEmail, password) => {
+  const signUp = async (email, password) => {
     setLoading(true)
-    const email = convertUsername(usernameOrEmail)
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
     if (error) {
       setLoading(false)
       throw error

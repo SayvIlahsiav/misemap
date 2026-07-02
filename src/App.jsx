@@ -171,7 +171,7 @@ function AppContent() {
         <div style={{marginTop:'auto',padding:'12px 8px 0',borderTop:'1px solid #f5f5f5', display:'flex', flexDirection:'column', gap:10}}>
           <div style={{display:'flex', flexDirection:'column', gap:2, padding:'8px 10px', background:'#fafafa', borderRadius:10, border:'1px solid #f0f0f0'}}>
             <span style={{fontWeight:700, fontSize:12, color:'#1f2937', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{org?.name}</span>
-            <span style={{fontSize:11, color:'#6b7280', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{user?.email}</span>
+            <span style={{fontSize:11, color:'#6b7280', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{profile?.username || user?.email}</span>
             <span style={{fontSize:9, fontWeight:800, color:'#0d9488', textTransform:'uppercase', letterSpacing:'0.05em', marginTop:2}}>
               {profile?.role}
             </span>

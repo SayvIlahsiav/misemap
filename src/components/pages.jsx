@@ -511,7 +511,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
 export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
-  const { renameOrg } = useAuth()
+  const { renameOrg, refreshProfile } = useAuth()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
@@ -521,6 +521,10 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
   const [copied, setCopied] = useState(false)
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(false)
+
+  // Username states
+  const [username, setUsername] = useState(profile?.username || '')
+  const [savingUsername, setSavingUsername] = useState(false)
 
   const loadRequests = async () => {
     if (profile?.role !== 'owner' || !org?.id) return
@@ -558,6 +562,48 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
     navigator.clipboard.writeText(org.id)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSaveUsername = async () => {
+    const trimmed = username.trim().toLowerCase()
+    if (trimmed !== '' && (trimmed.length < 3 || trimmed.length > 20)) {
+      alert('Username must be between 3 and 20 characters.')
+      return
+    }
+    if (trimmed !== '' && !/^[a-zA-Z0-9_]+$/.test(trimmed)) {
+      alert('Username can only contain letters, numbers, and underscores.')
+      return
+    }
+    
+    setSavingUsername(true)
+    try {
+      if (trimmed !== '') {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', trimmed)
+          .maybeSingle()
+        if (error) throw error
+        if (data && data.id !== profile.id) {
+          alert('Username is already taken. Please choose another.')
+          setSavingUsername(false)
+          return
+        }
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: trimmed === '' ? null : trimmed })
+        .eq('id', profile.id)
+      if (error) throw error
+      
+      alert('Username updated successfully!')
+      await refreshProfile()
+    } catch (err) {
+      alert(err.message || 'Failed to update username.')
+    } finally {
+      setSavingUsername(false)
+    }
   }
 
   const handleRequestAction = async (requestId, status) => {
@@ -668,6 +714,15 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
                 <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
               </div>
             </div>
+          </div>
+          <div style={{borderTop:'1px solid #f1f1f1', paddingTop:16, marginTop: 8}}>
+            <Label>Your Profile Username (Optional)</Label>
+            <div style={{display:'flex', gap:8, marginTop: 4, maxWidth: isMobile ? '100%' : '50%'}}>
+              <input type='text' value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. chef_pastry"
+                style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#1a1a1a', outline:'none'}}/>
+              <Btn ch={savingUsername ? 'Saving...' : 'Save'} onClick={handleSaveUsername} v="secondary" sz="md" disabled={savingUsername || username === (profile?.username || '')}/>
+            </div>
+            <p style={{fontSize:11, color:'#9ca3af', marginTop:6}}>A unique custom username (alphanumeric & underscores, 3-20 characters) shown in the workspace sidebar.</p>
           </div>
           <InfoBox color='gray'>
             Your role: <span style={{fontWeight:700, color:'#0d9488'}}>{profile?.role?.toUpperCase()}</span>. 
