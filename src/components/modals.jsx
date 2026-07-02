@@ -4,7 +4,7 @@ import { Modal, Btn, Bdg, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill } from '
 import { AiPanel } from './AiPanel.jsx'
 import { IngPicker } from './IngPicker.jsx'
 import { aiSuggest } from '../services/ai.js'
-import { FOOD_TYPES, UNITS, NF } from '../constants.js'
+import { FOOD_TYPES, UNITS, NF, FT_COLOR_MAP } from '../constants.js'
 import { uid, fc, fp, rmUC, ingCost, intUC, miFC, intNut, miNut, effVal } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
 
