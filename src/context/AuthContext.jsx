@@ -103,13 +103,15 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let active = true
+    let subscription = null
 
     const initSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session && active) {
+        if (!active) return
+        if (session) {
           await fetchProfile(session.user)
-        } else if (active) {
+        } else {
           setUser(null)
           setProfile(null)
           setOrg(null)
@@ -121,7 +123,9 @@ export const AuthProvider = ({ children }) => {
         if (active) setLoading(false)
       }
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!active) return
+
+      const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (!active) return
         if (session) {
           await fetchProfile(session.user)
@@ -133,16 +137,16 @@ export const AuthProvider = ({ children }) => {
           setLoading(false)
         }
       })
-
-      return () => {
-        subscription?.unsubscribe()
-      }
+      subscription = data.subscription
     }
 
     initSession()
 
     return () => {
       active = false
+      if (subscription) {
+        subscription.unsubscribe()
+      }
     }
   }, [])
 
@@ -186,12 +190,17 @@ export const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     setLoading(true)
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
-    setOrg(null)
-    setPendingRequest(null)
-    setLoading(false)
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.warn('[AuthContext] Error during signOut:', err)
+    } finally {
+      setUser(null)
+      setProfile(null)
+      setOrg(null)
+      setPendingRequest(null)
+      setLoading(false)
+    }
   }
 
   const seedSampleData = async (orgId) => {
