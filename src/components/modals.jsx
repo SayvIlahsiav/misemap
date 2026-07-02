@@ -6,6 +6,7 @@ import { IngPicker } from './IngPicker.jsx'
 import { aiSuggest } from '../services/ai.js'
 import { FOOD_TYPES, UNITS, NF } from '../constants.js'
 import { uid, fc, fp, rmUC, ingCost, intUC, miFC, intNut, miNut, effVal } from '../utils.js'
+import { useIsMobile } from '../hooks/useIsMobile.js'
 
 // ─────────────────────────────────────────────────────────
 // RAW MATERIAL MODAL
@@ -15,6 +16,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
   const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
   const [ai, setAi] = useState(null)
   const [aiL,setAiL]= useState(false)
+  const isMobile    = useIsMobile()
   const upd = (k,v) => setF(p=>({...p,[k]:v}))
   const buc = (f.pack_cost||0)/(f.pack_qty||1)
   const uc  = rmUC(f)
@@ -38,7 +40,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
   return (
     <Modal title={rm?'Edit Raw Material':'Add Raw Material'} onClose={onClose} wide>
       <SecTitle>Basic Information</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
           <Inp label='Ingredient Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawns, Basmati Rice, Olive Oil' req style={{flex:1}}/>
           <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
@@ -46,11 +48,11 @@ export const RMModal = ({rm, onSave, onClose}) => {
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
         <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Seafood, Dairy, Vegetables' req/>
         <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Shellfish, Leafy Greens'/>
-        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
 
       <SecTitle>Purchase Details</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',gap:12}}>
         <Sel label='Buy Unit' v={f.buy_unit} onChange={v=>{upd('buy_unit',v);if(v===f.usage_unit)upd('conversion',1)}} opts={UNITS} req/>
         <Inp label='Pack Cost (₹)' v={f.pack_cost} onChange={v=>upd('pack_cost',parseFloat(v)||0)} type='number' min='0' step='any' req/>
         <Inp label='Qty per Pack' v={f.pack_qty} onChange={v=>upd('pack_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
@@ -58,7 +60,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
       <div style={{marginTop:8}}><InfoBox color='gray'>Cost per {f.buy_unit||'buy unit'}: <strong>{fc(buc)}</strong></InfoBox></div>
 
       <SecTitle>Usage Details</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <Sel label='Usage Unit (how measured in recipes)' v={f.usage_unit} onChange={v=>{upd('usage_unit',v);if(v===f.buy_unit)upd('conversion',1)}} opts={UNITS} req/>
         <Inp
           label={sameUnit?'Conversion (same unit — 1:1)':`How many ${f.usage_unit||'usage units'} per 1 ${f.buy_unit||'buy unit'}`}
@@ -68,7 +70,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
       <div style={{marginTop:8}}><InfoBox color='amber'>Cost per {f.usage_unit||'usage unit'}: <strong>{fc(uc)}</strong></InfoBox></div>
 
       <SecTitle>Nutritional Values (per 1 {f.usage_unit||'usage unit'})</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:10}}>
         {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u}/>)}
       </div>
 
@@ -86,6 +88,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
 export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
   const blank = {id:'',name:'',category:'',ingredients:[],yield_qty:1,yield_unit:'g'}
   const [f,setF] = useState(inter?{...blank,...inter}:{...blank,id:uid()})
+  const isMobile  = useIsMobile()
   const upd = (k,v) => setF(p=>({...p,[k]:v}))
   const totalCost = f.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0)
   const uc  = totalCost/(f.yield_qty||1)
@@ -94,7 +97,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
 
   return (
     <Modal title={inter?'Edit Intermediate':'Add Intermediate'} onClose={onClose} wide>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <Inp label='Intermediate Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Red Pasta Sauce, Marinated Chicken' req/>
         <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Sauces, Marinades, Bases'/>
       </div>
@@ -103,12 +106,12 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
       <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints.filter(i=>i.id!==f.id)}/>
 
       <SecTitle>Yield (Output produced by this recipe)</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <Inp label='Yield Quantity' v={f.yield_qty} onChange={v=>upd('yield_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
         <Sel label='Yield Unit' v={f.yield_unit} onChange={v=>upd('yield_unit',v)} opts={UNITS} req/>
       </div>
       {f.yield_qty>0&&f.ingredients.length>0&&(
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}>
+        <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:8,marginTop:8}}>
           <InfoBox color='gray'>Total recipe cost: <strong>{fc(totalCost)}</strong></InfoBox>
           <InfoBox color='amber'>Cost per {f.yield_unit}: <strong>{fc(uc)}</strong></InfoBox>
         </div>
@@ -117,7 +120,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
       {f.ingredients.length>0&&(
         <>
           <SecTitle>Auto-Calculated Nutrition (per yield unit)</SecTitle>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
             {NF.map(n=>(
               <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
                 <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
@@ -144,6 +147,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
   const [ai,setAi] = useState(null)
   const [aiL,setAiL]= useState(false)
+  const isMobile    = useIsMobile()
   const upd = (k,v) => setF(p=>({...p,[k]:v}))
 
   const food = miFC(f,rms,ints)
@@ -173,7 +177,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
     const eff = effVal(field,f.id,f.category,pc)
     const hasOvr = f[ovrKey]!=null
     return (
-      <div style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid #f9fafb'}}>
+      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f9fafb'}}>
         <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>{label}</span>
         {hasOvr?(
           <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -188,7 +192,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             </button>
           </div>
         ):(
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
             <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{isX?`${eff.v}×`:`${unit}${eff.v}`}</span>
             <SrcPill src={eff.src}/>
             <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
@@ -204,7 +208,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   return (
     <Modal title={item?'Edit Menu Item':'Add Menu Item'} onClose={onClose} wide>
       <SecTitle>Basic Information</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
           <Inp label='Item Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawn Pasta, Mango Smoothie' req style={{flex:1}}/>
           <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
@@ -212,7 +216,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
         <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Mains, Beverages, Starters'/>
         <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Pasta, Smoothies, Soups'/>
-        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…'/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
@@ -234,7 +238,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
                 <AlertTriangle size={13}/> FC% exceeds your {threshold}% alert threshold!
               </div>
             )}
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
+            <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)',gap:14}}>
               {[['Food Cost',fc(food)],['Selling Price ('+act_spm+'×)',fc(sp)],['Packaging',fc(act_pkg)],['Delivery Markup',act_dm+'%'],['Delivery Price',fc(dp)],['FC%',fp(pct)]].map(([l,vl])=>(
                 <div key={l}>
                   <div style={{fontSize:11,color:'#6b7280'}}>{l}</div>
@@ -245,7 +249,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
           </div>
 
           <SecTitle>Total Nutrition (per serving)</SecTitle>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
             {NF.map(n=>(
               <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
                 <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
