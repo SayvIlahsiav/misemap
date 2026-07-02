@@ -143,7 +143,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
 // MENU ITEM MODAL
 // ─────────────────────────────────────────────────────────
 export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
-  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null}
+  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null}
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
   const [ai,setAi] = useState(null)
   const [aiL,setAiL]= useState(false)
@@ -157,7 +157,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const act_spm = f.sp_multiplier_override ?? eff_spm.v
   const act_pkg = f.packaging_cost_override ?? eff_pkg.v
   const act_dm  = f.delivery_markup_override ?? eff_dm.v
-  const sp  = food * act_spm
+  const sp  = f.selling_price_override ?? (food * act_spm)
   const dp  = (sp + act_pkg) * (1 + act_dm/100)
   const pct = sp>0?(food/sp)*100:0
   const nut = miNut(f,rms,ints)
@@ -227,6 +227,27 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
         <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
         <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
         <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
+          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Selling Price</span>
+          {f.selling_price_override != null ? (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{position:'relative'}}>
+                <input type='number' value={f.selling_price_override} min='0' step='any'
+                  onChange={e=>upd('selling_price_override',parseFloat(e.target.value)||0)}
+                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+              </div>
+              <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+                <RotateCcw size={11}/> Reset
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(food * act_spm)} (Suggested)</span>
+              <button onClick={()=>upd('selling_price_override',parseFloat((food * act_spm).toFixed(2)))} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            </div>
+          )}
+        </div>
       </div>
 
       {f.ingredients.length>0&&(
@@ -239,7 +260,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
               </div>
             )}
             <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)',gap:14}}>
-              {[['Food Cost',fc(food)],['Selling Price ('+act_spm+'×)',fc(sp)],['Packaging',fc(act_pkg)],['Delivery Markup',act_dm+'%'],['Delivery Price',fc(dp)],['FC%',fp(pct)]].map(([l,vl])=>(
+              {[['Food Cost',fc(food)],[f.selling_price_override != null ? 'Selling Price (Custom)' : 'Selling Price ('+act_spm+'×)',fc(sp)],['Packaging',fc(act_pkg)],['Delivery Markup',act_dm+'%'],['Delivery Price',fc(dp)],['FC%',fp(pct)]].map(([l,vl])=>(
                 <div key={l}>
                   <div style={{fontSize:11,color:'#6b7280'}}>{l}</div>
                   <div style={{fontSize:16,fontWeight:800,color:l==='FC%'?(pct>threshold?'#991b1b':pct>threshold*0.85?'#134e4a':'#166534'):'#111'}}>{vl}</div>
