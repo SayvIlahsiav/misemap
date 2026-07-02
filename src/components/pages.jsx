@@ -160,10 +160,10 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
             <AlertTriangle size={15}/> {alerts.length} item{alerts.length!==1?'s':''} exceed{alerts.length===1?'s':''} your {threshold}% FC% threshold
           </div>
           {alerts.map(m=>{
-            const isExpanded = expandedId === m.id
+            const isExpanded = expandedId === 'alert-' + m.id
             return (
               <div key={m.id} style={{background:'#fff',border:'1px solid #fecaca',borderRadius:10,marginBottom:6,overflow:'hidden'}}>
-                <div onClick={() => setExpandedId(isExpanded ? null : m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
+                <div onClick={() => setExpandedId(isExpanded ? null : 'alert-' + m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
                   onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
                     {isExpanded ? <ChevronUp size={14} style={{color:'#dc2626'}}/> : <ChevronDown size={14} style={{color:'#dc2626'}}/>}
@@ -200,10 +200,10 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
             </thead>
             <tbody>
               {pricings.map(m=>{
-                const isExpanded = expandedId === m.id
+                const isExpanded = expandedId === 'table-' + m.id
                 return (
                   <React.Fragment key={m.id}>
-                    <tr onClick={() => setExpandedId(isExpanded ? null : m.id)} style={{borderTop:'1px solid #f9fafb', cursor:'pointer'}}
+                    <tr onClick={() => setExpandedId(isExpanded ? null : 'table-' + m.id)} style={{borderTop:'1px solid #f9fafb', cursor:'pointer'}}
                       onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                       <td style={{padding:'10px 14px',fontWeight:700,color:'#111'}}>
                         <div style={{display:'flex', alignItems:'center', gap:6}}>
