@@ -331,7 +331,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'#f9fafb'}}>
-                {['Item','Category','Type','Food Cost','SP','Pkg','Takeaway Price','Delivery Price','FC%',''].map(h=>(
+                {['Item','Category','Type','Food Cost','Dine-In Price','Takeaway Price','Delivery Price','Dine-In FC%','Takeaway FC%','Delivery FC%',''].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -348,10 +348,11 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
                   <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
                   <td style={{padding:'10px 14px',fontWeight:600}}>{fc(m.food)}</td>
                   <td style={{padding:'10px 14px',fontWeight:800,color:'#111'}}>{fc(m.sp)}</td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{fc(m.pkg)}</td>
                   <td style={{padding:'10px 14px',fontWeight:700,color:'#374151'}}>{fc(m.tp)}</td>
                   <td style={{padding:'10px 14px',fontWeight:800,color:'#0f766e'}}>{fc(m.dp)}</td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
+                  <td style={{padding:'10px 14px'}}><FCBadge pct={m.takeaway_fc_pct} threshold={threshold}/></td>
+                  <td style={{padding:'10px 14px'}}><FCBadge pct={m.delivery_fc_pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}>
                     <div style={{display:'flex',gap:4}}>
                       <button onClick={()=>setModal(mis.find(x=>x.id===m.id))} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'#9ca3af',borderRadius:6,display:'flex'}}
@@ -380,7 +381,11 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
 export const SettingsPage = ({pc, setPc, mis}) => {
-  const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
+  const [draft, setDraft]     = useState(()=>{
+    const copy = JSON.parse(JSON.stringify(pc))
+    if (copy.global.delivery_commission == null) copy.global.delivery_commission = 25
+    return copy
+  })
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
   const isMobile              = useIsMobile()
@@ -405,6 +410,7 @@ export const SettingsPage = ({pc, setPc, mis}) => {
     {k:'sp_multiplier',l:'SP Multiplier',u:'×',step:'0.1'},
     {k:'packaging_cost',l:'Packaging Cost',u:'₹',step:'1'},
     {k:'delivery_markup',l:'Delivery Markup',u:'%',step:'1'},
+    {k:'delivery_commission',l:'Aggregator Commission',u:'%',step:'1'},
   ]
   const cats = [...new Set(mis.map(m=>m.category).filter(Boolean))].sort()
 

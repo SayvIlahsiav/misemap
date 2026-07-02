@@ -20,6 +20,6 @@ export const FT_COLOR_MAP = {
 }
 
 export const DEFAULT_PC = {
-  global:{ sp_multiplier:3, delivery_markup:15, packaging_cost:20, fc_alert_threshold:35 },
+  global:{ sp_multiplier:3, delivery_markup:15, packaging_cost:20, fc_alert_threshold:35, delivery_commission:25 },
   category_overrides:{}, item_overrides:{},
 }

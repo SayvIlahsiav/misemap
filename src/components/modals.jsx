@@ -143,7 +143,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
 // MENU ITEM MODAL
 // ─────────────────────────────────────────────────────────
 export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
-  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null}
+  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null,takeaway_price_override:null,delivery_price_override:null}
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
   const [ai,setAi] = useState(null)
   const [aiL,setAiL]= useState(false)
@@ -157,14 +157,17 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const act_spm = f.sp_multiplier_override ?? eff_spm.v
   const act_pkg = f.packaging_cost_override ?? eff_pkg.v
   const act_dm  = f.delivery_markup_override ?? eff_dm.v
+  const comm    = pc.global.delivery_commission ?? 25
   const sugg_sp = Math.round((food * act_spm) / 5) * 5
   const sugg_pct = sugg_sp > 0 ? (food / sugg_sp) * 100 : 0
   const sp  = f.selling_price_override ?? sugg_sp
   const sugg_tp = Math.round((sugg_sp + act_pkg) / 5) * 5
-  const tp   = Math.round((sp + act_pkg) / 5) * 5
+  const tp  = f.takeaway_price_override ?? sugg_tp
   const sugg_dp = Math.round(((sugg_sp + act_pkg) * (1 + act_dm/100)) / 5) * 5
-  const dp   = Math.round(((sp + act_pkg) * (1 + act_dm/100)) / 5) * 5
+  const dp  = f.delivery_price_override ?? sugg_dp
   const pct = sp>0?(food/sp)*100:0
+  const takeaway_pct = tp>0?((food+act_pkg)/tp)*100:0
+  const delivery_pct = dp>0?((food+act_pkg)/(dp*(1-comm/100)))*100:0
   const nut = miNut(f,rms,ints)
   const threshold = pc.global.fc_alert_threshold
   const valid = f.name&&f.ingredients.length>0
@@ -232,7 +235,7 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
         <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
         <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
         <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f3f4f6'}}>
           <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Selling Price</span>
           {f.selling_price_override != null ? (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -250,6 +253,48 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
               <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)} (Suggested)</span>
               <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            </div>
+          )}
+        </div>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f3f4f6'}}>
+          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Takeaway Price</span>
+          {f.takeaway_price_override != null ? (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{position:'relative'}}>
+                <input type='number' value={f.takeaway_price_override} min='0' step='any'
+                  onChange={e=>upd('takeaway_price_override',parseFloat(e.target.value)||0)}
+                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+              </div>
+              <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+                <RotateCcw size={11}/> Reset
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_tp)} (Suggested)</span>
+              <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            </div>
+          )}
+        </div>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
+          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Delivery Price</span>
+          {f.delivery_price_override != null ? (
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{position:'relative'}}>
+                <input type='number' value={f.delivery_price_override} min='0' step='any'
+                  onChange={e=>upd('delivery_price_override',parseFloat(e.target.value)||0)}
+                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+              </div>
+              <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+                <RotateCcw size={11}/> Reset
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_dp)} (Suggested)</span>
+              <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
             </div>
           )}
         </div>
