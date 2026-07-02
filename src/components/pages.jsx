@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
-  Plus, Search, Pencil, Trash2
+  Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel } from './UIPrimitives.jsx'
 import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
@@ -12,12 +12,20 @@ import { useIsMobile } from '../hooks/useIsMobile.js'
 // ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
-export const Dashboard = ({rms, ints, mis, pc, onNavigate}) => {
+export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
   const alerts    = pricings.filter(m=>m.pct>threshold)
   const warnings  = pricings.filter(m=>m.pct>threshold*0.85&&m.pct<=threshold)
   const isMobile  = useIsMobile()
+
+  const [expandedId, setExpandedId] = useState(null)
+  const [modal, setModal]           = useState(null)
+
+  const save = (item) => {
+    setMis(mis.map(m => m.id === item.id ? item : m))
+    setModal(null)
+  }
 
   const StatCard = ({icon:Icon,label,value,sub,color,onClick}) => {
     const [hover, setHover] = useState(false)
@@ -50,6 +58,89 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate}) => {
     )
   }
 
+  const DetailPanel = ({m}) => {
+    const ingDetails = m.ingredients.map(ing => {
+      const cost = ingCost(ing, rms, ints)
+      return { ...ing, cost }
+    })
+    
+    const dineInMargin = m.sp - m.food
+    const takeawayMargin = m.tp - (m.food + m.pkg)
+    const deliveryNetPayout = m.dp * (1 - m.dm / 100)
+    const deliveryMargin = deliveryNetPayout - (m.food + m.pkg)
+
+    return (
+      <div style={{padding: '16px 20px', background: '#fafbfc', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderTop: '1px solid #f3f4f6'}}>
+        <div style={{display:'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent:'space-between', alignItems:'flex-start', gap:20, marginBottom:16}}>
+          {/* Ingredients Column */}
+          <div style={{flex: 1, minWidth: 260}}>
+            <div style={{fontWeight: 700, fontSize: 11, color: '#374151', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Recipe Cost Breakdown</div>
+            <div style={{borderLeft: '2px solid #e5e7eb', paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 6}}>
+              {ingDetails.map((ing, idx) => {
+                const target = ing.type === 'raw' ? rms.find(r=>r.id===ing.id) : ints.find(i=>i.id===ing.id)
+                const name = target?.name || 'Unknown Ingredient'
+                return (
+                  <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#4b5563'}}>
+                    <span>{name} ({ing.amount}{ing.unit})</span>
+                    <span style={{fontWeight: 600, color: '#111'}}>{fc(ing.cost)}</span>
+                  </div>
+                )
+              })}
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:700, color:'#111', borderTop:'1px solid #f3f4f6', paddingTop:4, marginTop:4}}>
+                <span>Total Food Cost</span>
+                <span>{fc(m.food)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Margins Column */}
+          <div style={{flex: 1, minWidth: 260}}>
+            <div style={{fontWeight: 700, fontSize: 11, color: '#374151', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Channel Margins & Payouts</div>
+            <div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
+              {/* Dine-In */}
+              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Dine-In (SP: {fc(m.sp)})</span>
+                  <div style={{fontSize: 9, color: '#9ca3af'}}>Cost: {fc(m.food)}</div>
+                </div>
+                <div style={{textAlign: 'right'}}>
+                  <div style={{fontWeight: 700, fontSize: 12, color: '#16a34a'}}>Profit: {fc(dineInMargin)}</div>
+                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.pct)}</div>
+                </div>
+              </div>
+              {/* Takeaway */}
+              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Takeaway (TP: {fc(m.tp)})</span>
+                  <div style={{fontSize: 9, color: '#9ca3af'}}>Cost + Pkg: {fc(m.food + m.pkg)}</div>
+                </div>
+                <div style={{textAlign: 'right'}}>
+                  <div style={{fontWeight: 700, fontSize: 12, color: '#16a34a'}}>Profit: {fc(takeawayMargin)}</div>
+                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.takeaway_fc_pct)}</div>
+                </div>
+              </div>
+              {/* Delivery */}
+              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Delivery (DP: {fc(m.dp)})</span>
+                  <div style={{fontSize: 9, color: '#9ca3af'}}>Net Payout: {fc(deliveryNetPayout)}</div>
+                </div>
+                <div style={{textAlign: 'right'}}>
+                  <div style={{fontWeight: 700, fontSize: 12, color: deliveryMargin > 0 ? '#16a34a' : '#dc2626'}}>Profit: {fc(deliveryMargin)}</div>
+                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.delivery_fc_pct)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:'flex', justifyContent:'flex-end', borderTop:'1px solid #f3f4f6', paddingTop:10}}>
+          <Btn ch={<span style={{display:'flex', alignItems:'center', gap:4}}><Pencil size={11}/> Edit Menu Item</span>} v='secondary' onClick={(e) => { e.stopPropagation(); setModal(m) }}/>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div style={{marginBottom:24}}>
@@ -68,19 +159,27 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate}) => {
           <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,fontSize:13,color:'#991b1b',marginBottom:12}}>
             <AlertTriangle size={15}/> {alerts.length} item{alerts.length!==1?'s':''} exceed{alerts.length===1?'s':''} your {threshold}% FC% threshold
           </div>
-          {alerts.map(m=>(
-            <div key={m.id} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',background:'#fff',border:'1px solid #fecaca',borderRadius:10,padding:'8px 14px',marginBottom:6,gap: isMobile ? 8 : 0}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontWeight:700,fontSize:13}}>{m.name}</span>
-                {m.category&&<Bdg ch={m.category} c='gray'/>}
+          {alerts.map(m=>{
+            const isExpanded = expandedId === m.id
+            return (
+              <div key={m.id} style={{background:'#fff',border:'1px solid #fecaca',borderRadius:10,marginBottom:6,overflow:'hidden'}}>
+                <div onClick={() => setExpandedId(isExpanded ? null : m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
+                  onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    {isExpanded ? <ChevronUp size={14} style={{color:'#dc2626'}}/> : <ChevronDown size={14} style={{color:'#dc2626'}}/>}
+                    <span style={{fontWeight:700,fontSize:13}}>{m.name}</span>
+                    {m.category&&<Bdg ch={m.category} c='gray'/>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,fontSize:12}}>
+                    <span style={{color:'#6b7280'}}>FC: <strong style={{color:'#111'}}>{fc(m.food)}</strong></span>
+                    <span style={{color:'#6b7280'}}>SP: <strong style={{color:'#111'}}>{fc(m.sp)}</strong></span>
+                    <FCBadge pct={m.pct} threshold={threshold}/>
+                  </div>
+                </div>
+                {isExpanded && <DetailPanel m={m} />}
               </div>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,fontSize:12}}>
-                <span style={{color:'#6b7280'}}>FC: <strong style={{color:'#111'}}>{fc(m.food)}</strong></span>
-                <span style={{color:'#6b7280'}}>SP: <strong style={{color:'#111'}}>{fc(m.sp)}</strong></span>
-                <FCBadge pct={m.pct} threshold={threshold}/>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -94,27 +193,56 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate}) => {
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 700}}>
             <thead>
               <tr style={{background:'#f9fafb'}}>
-                {['Item','Category','Food Type','Food Cost','Sell Price','Delivery Price','FC%'].map(h=>(
+                {['Item','Category','Food Type','Food Cost','Dine-In','Takeaway','Delivery','Dine-In FC%'].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {pricings.map(m=>(
-                <tr key={m.id} style={{borderTop:'1px solid #f9fafb'}}
-                  onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                  <td style={{padding:'10px 14px',fontWeight:700,color:'#111'}}>{m.name}</td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{m.category||'—'}</td>
-                  <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                  <td style={{padding:'10px 14px'}}>{fc(m.food)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:700}}>{fc(m.sp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:700,color:'#0f766e'}}>{fc(m.dp)}</td>
-                  <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
-                </tr>
-              ))}
+              {pricings.map(m=>{
+                const isExpanded = expandedId === m.id
+                return (
+                  <React.Fragment key={m.id}>
+                    <tr onClick={() => setExpandedId(isExpanded ? null : m.id)} style={{borderTop:'1px solid #f9fafb', cursor:'pointer'}}
+                      onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'#111'}}>
+                        <div style={{display:'flex', alignItems:'center', gap:6}}>
+                          {isExpanded ? <ChevronUp size={14} style={{color:'#9ca3af'}}/> : <ChevronDown size={14} style={{color:'#9ca3af'}}/>}
+                          {m.name}
+                        </div>
+                      </td>
+                      <td style={{padding:'10px 14px',color:'#6b7280'}}>{m.category||'—'}</td>
+                      <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
+                      <td style={{padding:'10px 14px',fontWeight:600}}>{fc(m.food)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700}}>{fc(m.sp)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'#374151'}}>{fc(m.tp)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'#0f766e'}}>{fc(m.dp)}</td>
+                      <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${m.id}-detail`} style={{background:'#fafbfc'}}>
+                        <td colSpan={8} style={{padding:0}}>
+                          <DetailPanel m={m} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>
+      )}
+
+      {modal && (
+        <MIModal
+          item={modal}
+          onSave={save}
+          onClose={() => setModal(null)}
+          rms={rms}
+          ints={ints}
+          pc={pc}
+        />
       )}
     </div>
   )

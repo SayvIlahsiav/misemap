@@ -167,6 +167,9 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const pct = sp>0?(food/sp)*100:0
   const takeaway_pct = tp>0?((food+act_pkg)/tp)*100:0
   const delivery_pct = dp>0?((food+act_pkg)/(dp*(1-act_dm/100)))*100:0
+  const sugg_takeaway_pct = sugg_tp>0?((food+act_pkg)/sugg_tp)*100:0
+  const sugg_delivery_pct = sugg_dp>0?((food+act_pkg)/(sugg_dp*(1-act_dm/100)))*100:0
+  const hasCustom = f.selling_price_override != null || f.takeaway_price_override != null || f.delivery_price_override != null
   const nut = miNut(f,rms,ints)
   const threshold = pc.global.fc_alert_threshold
   const valid = f.name&&f.ingredients.length>0
@@ -311,54 +314,64 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',gap:16}}>
               {/* Suggested Column */}
               <div style={{background:'#fff',padding:12,borderRadius:10,border:'1px solid #e5e7eb'}}>
-                <div style={{fontWeight:700,fontSize:12,color:'#4b5563',marginBottom:8,borderBottom:'1px solid #f3f4f6',paddingBottom:4}}>Suggested Pricing</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div style={{fontWeight:700,fontSize:12,color:'#4b5563',marginBottom:10,borderBottom:'1px solid #f3f4f6',paddingBottom:4}}>Suggested Pricing</div>
+                <div style={{display:'flex',flexDirection:'column',gap:10}}>
                   <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Selling Price</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)}</div>
+                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Dine-In</div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)}</span>
+                      <span style={{fontSize:11,fontWeight:600,color:sugg_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_pct)} FC</span>
+                    </div>
                   </div>
                   <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>FC%</div>
-                    <div style={{fontSize:13,fontWeight:700,color:sugg_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_pct)}</div>
+                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Takeaway (with Pkg)</div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_tp)}</span>
+                      <span style={{fontSize:11,fontWeight:600,color:sugg_takeaway_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_takeaway_pct)} FC</span>
+                    </div>
                   </div>
                   <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Takeaway Price</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_tp)}</div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Delivery Price</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_dp)}</div>
+                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Delivery (Net)</div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_dp)}</span>
+                      <span style={{fontSize:11,fontWeight:600,color:sugg_delivery_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_delivery_pct)} FC</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Custom Column */}
-              <div style={{background: f.selling_price_override != null ? '#f0fdfa' : '#fafafa',padding:12,borderRadius:10,border: f.selling_price_override != null ? '1px solid #99f6e4' : '1px solid #f3f4f6'}}>
-                <div style={{fontWeight:700,fontSize:12,color: f.selling_price_override != null ? '#0f766e' : '#9ca3af',marginBottom:8,borderBottom: f.selling_price_override != null ? '1px solid #ccfbf1' : '1px solid #f3f4f6',paddingBottom:4}}>
-                  {f.selling_price_override != null ? 'Custom Pricing (Active)' : 'Custom Pricing (None)'}
+              <div style={{background: hasCustom ? '#f0fdfa' : '#fafafa',padding:12,borderRadius:10,border: hasCustom ? '1px solid #99f6e4' : '1px solid #f3f4f6'}}>
+                <div style={{fontWeight:700,fontSize:12,color: hasCustom ? '#0f766e' : '#9ca3af',marginBottom:10,borderBottom: hasCustom ? '1px solid #ccfbf1' : '1px solid #f3f4f6',paddingBottom:4}}>
+                  {hasCustom ? 'Custom Pricing (Active)' : 'Custom Pricing (None)'}
                 </div>
-                {f.selling_price_override != null ? (
-                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                {hasCustom ? (
+                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
                     <div>
-                      <div style={{fontSize:10,color:'#9ca3af'}}>Selling Price</div>
-                      <div style={{fontSize:13,fontWeight:700,color:'#0d9488'}}>{fc(sp)}</div>
+                      <div style={{fontSize:10,color: f.selling_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Dine-In {f.selling_price_override != null && '(Custom)'}</div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:13,fontWeight:700,color: f.selling_price_override != null ? '#0d9488' : '#374151'}}>{fc(sp)}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:pct>threshold?'#dc2626':'#16a34a'}}>{fp(pct)} FC</span>
+                      </div>
                     </div>
                     <div>
-                      <div style={{fontSize:10,color:'#9ca3af'}}>FC%</div>
-                      <div style={{fontSize:13,fontWeight:700,color:pct>threshold?'#dc2626':'#16a34a'}}>{fp(pct)}</div>
+                      <div style={{fontSize:10,color: f.takeaway_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Takeaway {f.takeaway_price_override != null && '(Custom)'}</div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:13,fontWeight:700,color: f.takeaway_price_override != null ? '#0d9488' : '#374151'}}>{fc(tp)}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:takeaway_pct>threshold?'#dc2626':'#16a34a'}}>{fp(takeaway_pct)} FC</span>
+                      </div>
                     </div>
                     <div>
-                      <div style={{fontSize:10,color:'#9ca3af'}}>Takeaway Price</div>
-                      <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(tp)}</div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:10,color:'#9ca3af'}}>Delivery Price</div>
-                      <div style={{fontSize:13,fontWeight:700,color:'#0f766e'}}>{fc(dp)}</div>
+                      <div style={{fontSize:10,color: f.delivery_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Delivery {f.delivery_price_override != null && '(Custom)'}</div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                        <span style={{fontSize:13,fontWeight:700,color: f.delivery_price_override != null ? '#0d9488' : '#374151'}}>{fc(dp)}</span>
+                        <span style={{fontSize:11,fontWeight:600,color:delivery_pct>threshold?'#dc2626':'#16a34a'}}>{fp(delivery_pct)} FC</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div style={{fontSize:11,color:'#9ca3af',textAlign:'center',padding:'16px 0'}}>
-                    Using suggested pricing. Click Override under Pricing Overrides to set a custom price.
+                  <div style={{fontSize:11,color:'#9ca3af',textAlign:'center',padding:'32px 0',lineHeight:1.4}}>
+                    Using suggested pricing. Click Override under Pricing Overrides to set custom prices.
                   </div>
                 )}
               </div>

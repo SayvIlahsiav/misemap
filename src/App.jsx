@@ -145,7 +145,7 @@ export default function App() {
 
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',maxWidth:1120,overflowX:'hidden'}}>
-        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect}/>}
+        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis}/>}
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
