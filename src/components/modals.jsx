@@ -1,0 +1,312 @@
+import { useState } from 'react'
+import { Sparkles, AlertTriangle, RotateCcw } from 'lucide-react'
+import { Modal, Btn, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill } from './UIPrimitives.jsx'
+import { AiPanel } from './AiPanel.jsx'
+import { IngPicker } from './IngPicker.jsx'
+import { aiSuggest } from '../services/ai.js'
+import { FOOD_TYPES, UNITS, NF } from '../constants.js'
+import { uid, fc, fp, rmUC, ingCost, intUC, miFC, intNut, miNut, effVal } from '../utils.js'
+
+// ─────────────────────────────────────────────────────────
+// RAW MATERIAL MODAL
+// ─────────────────────────────────────────────────────────
+export const RMModal = ({rm, onSave, onClose}) => {
+  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',buy_unit:'kg',pack_cost:0,pack_qty:1,usage_unit:'g',conversion:1000,...Object.fromEntries(NF.map(f=>[f.k,0]))}
+  const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
+  const [ai, setAi] = useState(null)
+  const [aiL,setAiL]= useState(false)
+  const upd = (k,v) => setF(p=>({...p,[k]:v}))
+  const buc = (f.pack_cost||0)/(f.pack_qty||1)
+  const uc  = rmUC(f)
+  const sameUnit = f.usage_unit===f.buy_unit
+
+  const runAI = async () => {
+    if (!f.name.trim()){alert('Enter a name first.');return}
+    setAiL(true)
+    try { setAi(await aiSuggest(f.name,'raw')) }
+    catch(e){ alert('AI suggestion failed: '+e.message) }
+    finally { setAiL(false) }
+  }
+  const applyAI = () => {
+    if (!ai) return
+    const {category,sub_category,food_type,buy_unit,usage_unit,conversion,...nut}=ai
+    setF(p=>({...p,category:category||p.category,sub_category:sub_category||p.sub_category,food_type:food_type||p.food_type,buy_unit:buy_unit||p.buy_unit,usage_unit:usage_unit||p.usage_unit,conversion:conversion||p.conversion,...nut}))
+    setAi(null)
+  }
+  const valid = f.name&&(f.pack_cost||0)>0&&(f.pack_qty||0)>0
+
+  return (
+    <Modal title={rm?'Edit Raw Material':'Add Raw Material'} onClose={onClose} wide>
+      <SecTitle>Basic Information</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
+          <Inp label='Ingredient Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawns, Basmati Rice, Olive Oil' req style={{flex:1}}/>
+          <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
+        </div>
+        <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Seafood, Dairy, Vegetables' req/>
+        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Shellfish, Leafy Greens'/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req/>
+      </div>
+
+      <SecTitle>Purchase Details</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+        <Sel label='Buy Unit' v={f.buy_unit} onChange={v=>{upd('buy_unit',v);if(v===f.usage_unit)upd('conversion',1)}} opts={UNITS} req/>
+        <Inp label='Pack Cost (₹)' v={f.pack_cost} onChange={v=>upd('pack_cost',parseFloat(v)||0)} type='number' min='0' step='any' req/>
+        <Inp label='Qty per Pack' v={f.pack_qty} onChange={v=>upd('pack_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
+      </div>
+      <div style={{marginTop:8}}><InfoBox color='gray'>Cost per {f.buy_unit||'buy unit'}: <strong>{fc(buc)}</strong></InfoBox></div>
+
+      <SecTitle>Usage Details</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <Sel label='Usage Unit (how measured in recipes)' v={f.usage_unit} onChange={v=>{upd('usage_unit',v);if(v===f.buy_unit)upd('conversion',1)}} opts={UNITS} req/>
+        <Inp
+          label={sameUnit?'Conversion (same unit — 1:1)':`How many ${f.usage_unit||'usage units'} per 1 ${f.buy_unit||'buy unit'}`}
+          v={f.conversion} onChange={v=>upd('conversion',parseFloat(v)||0)}
+          type='number' min='0' step='any' readOnly={sameUnit}/>
+      </div>
+      <div style={{marginTop:8}}><InfoBox color='amber'>Cost per {f.usage_unit||'usage unit'}: <strong>{fc(uc)}</strong></InfoBox></div>
+
+      <SecTitle>Nutritional Values (per 1 {f.usage_unit||'usage unit'})</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
+        {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u}/>)}
+      </div>
+
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
+        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
+        <Btn ch='Save Raw Material' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+      </div>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// INTERMEDIATE MODAL
+// ─────────────────────────────────────────────────────────
+export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
+  const blank = {id:'',name:'',category:'',ingredients:[],yield_qty:1,yield_unit:'g'}
+  const [f,setF] = useState(inter?{...blank,...inter}:{...blank,id:uid()})
+  const upd = (k,v) => setF(p=>({...p,[k]:v}))
+  const totalCost = f.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0)
+  const uc  = totalCost/(f.yield_qty||1)
+  const nut = intNut({...f},rms,ints)
+  const valid = f.name&&(f.yield_qty||0)>0&&f.ingredients.length>0
+
+  return (
+    <Modal title={inter?'Edit Intermediate':'Add Intermediate'} onClose={onClose} wide>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <Inp label='Intermediate Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Red Pasta Sauce, Marinated Chicken' req/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Sauces, Marinades, Bases'/>
+      </div>
+
+      <SecTitle>Recipe Ingredients</SecTitle>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints.filter(i=>i.id!==f.id)}/>
+
+      <SecTitle>Yield (Output produced by this recipe)</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <Inp label='Yield Quantity' v={f.yield_qty} onChange={v=>upd('yield_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
+        <Sel label='Yield Unit' v={f.yield_unit} onChange={v=>upd('yield_unit',v)} opts={UNITS} req/>
+      </div>
+      {f.yield_qty>0&&f.ingredients.length>0&&(
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}>
+          <InfoBox color='gray'>Total recipe cost: <strong>{fc(totalCost)}</strong></InfoBox>
+          <InfoBox color='amber'>Cost per {f.yield_unit}: <strong>{fc(uc)}</strong></InfoBox>
+        </div>
+      )}
+
+      {f.ingredients.length>0&&(
+        <>
+          <SecTitle>Auto-Calculated Nutrition (per yield unit)</SecTitle>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+            {NF.map(n=>(
+              <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
+                <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
+                <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{(nut[n.k]||0).toFixed(2)}<span style={{fontSize:10,color:'#9ca3af',fontWeight:400,marginLeft:2}}>{n.u}</span></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
+        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
+        <Btn ch='Save Intermediate' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+      </div>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// MENU ITEM MODAL
+// ─────────────────────────────────────────────────────────
+export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
+  const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null}
+  const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
+  const [ai,setAi] = useState(null)
+  const [aiL,setAiL]= useState(false)
+  const upd = (k,v) => setF(p=>({...p,[k]:v}))
+
+  const food = miFC(f,rms,ints)
+  const eff_spm = effVal('sp_multiplier',f.id,f.category,pc)
+  const eff_pkg = effVal('packaging_cost',f.id,f.category,pc)
+  const eff_dm  = effVal('delivery_markup',f.id,f.category,pc)
+  const act_spm = f.sp_multiplier_override ?? eff_spm.v
+  const act_pkg = f.packaging_cost_override ?? eff_pkg.v
+  const act_dm  = f.delivery_markup_override ?? eff_dm.v
+  const sp  = food * act_spm
+  const dp  = (sp + act_pkg) * (1 + act_dm/100)
+  const pct = sp>0?(food/sp)*100:0
+  const nut = miNut(f,rms,ints)
+  const threshold = pc.global.fc_alert_threshold
+  const valid = f.name&&f.ingredients.length>0
+
+  const runAI = async () => {
+    if (!f.name.trim()){alert('Enter a name first.');return}
+    setAiL(true)
+    try { setAi(await aiSuggest(f.name,'menu')) }
+    catch(e){ alert('AI suggestion failed: '+e.message) }
+    finally { setAiL(false) }
+  }
+  const applyAI = () => { if(!ai)return; setF(p=>({...p,...ai})); setAi(null) }
+
+  const OvrField = ({label, field, ovrKey, unit, isX}) => {
+    const eff = effVal(field,f.id,f.category,pc)
+    const hasOvr = f[ovrKey]!=null
+    return (
+      <div style={{display:'flex',alignItems:'center',gap:12,padding:'8px 0',borderBottom:'1px solid #f9fafb'}}>
+        <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>{label}</span>
+        {hasOvr?(
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{position:'relative'}}>
+              <input type='number' value={f[ovrKey]} min='0' step='any'
+                onChange={e=>upd(ovrKey,parseFloat(e.target.value)||0)}
+                style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
+              <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>{unit}</span>
+            </div>
+            <button onClick={()=>upd(ovrKey,null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+              <RotateCcw size={11}/> Reset
+            </button>
+          </div>
+        ):(
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{isX?`${eff.v}×`:`${unit}${eff.v}`}</span>
+            <SrcPill src={eff.src}/>
+            <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const fcBg     = pct>threshold?'#fef2f2':pct>threshold*0.85?'#fff7ed':'#f0fdf4'
+  const fcBorder = pct>threshold?'#fecaca':pct>threshold*0.85?'#fed7aa':'#bbf7d0'
+
+  return (
+    <Modal title={item?'Edit Menu Item':'Add Menu Item'} onClose={onClose} wide>
+      <SecTitle>Basic Information</SecTitle>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
+          <Inp label='Item Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawn Pasta, Mango Smoothie' req style={{flex:1}}/>
+          <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
+        </div>
+        <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Mains, Beverages, Starters'/>
+        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Pasta, Smoothies, Soups'/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…'/>
+      </div>
+
+      <SecTitle>Recipe Ingredients</SecTitle>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints}/>
+
+      <SecTitle>Pricing Overrides</SecTitle>
+      <div style={{background:'#f9fafb',borderRadius:12,padding:'4px 16px'}}>
+        <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
+        <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
+        <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
+      </div>
+
+      {f.ingredients.length>0&&(
+        <>
+          <SecTitle>Live Pricing Preview</SecTitle>
+          <div style={{background:fcBg,border:`1px solid ${fcBorder}`,borderRadius:12,padding:16}}>
+            {pct>threshold&&(
+              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#991b1b',marginBottom:10}}>
+                <AlertTriangle size={13}/> FC% exceeds your {threshold}% alert threshold!
+              </div>
+            )}
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
+              {[['Food Cost',fc(food)],['Selling Price ('+act_spm+'×)',fc(sp)],['Packaging',fc(act_pkg)],['Delivery Markup',act_dm+'%'],['Delivery Price',fc(dp)],['FC%',fp(pct)]].map(([l,vl])=>(
+                <div key={l}>
+                  <div style={{fontSize:11,color:'#6b7280'}}>{l}</div>
+                  <div style={{fontSize:16,fontWeight:800,color:l==='FC%'?(pct>threshold?'#991b1b':pct>threshold*0.85?'#134e4a':'#166534'):'#111'}}>{vl}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <SecTitle>Total Nutrition (per serving)</SecTitle>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+            {NF.map(n=>(
+              <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
+                <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
+                <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{(nut[n.k]||0).toFixed(1)}<span style={{fontSize:10,color:'#9ca3af',fontWeight:400,marginLeft:2}}>{n.u}</span></div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
+        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
+        <Btn ch='Save Menu Item' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+      </div>
+    </Modal>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
+// CASCADE MODAL
+// ─────────────────────────────────────────────────────────
+export const CascadeModal = ({data, onConfirm, onClose, mis}) => {
+  const {changedFields, affCats, affItems, newGlobal} = data
+  const [sel, setSel] = useState([])
+  const toggle = key => setSel(s=>s.includes(key)?s.filter(x=>x!==key):[...s,key])
+  const getName = id => mis.find(m=>m.id===id)?.name||id
+  const LABELS = {sp_multiplier:'SP Multiplier',packaging_cost:'Packaging Cost',delivery_markup:'Delivery Markup'}
+
+  const items = []
+  changedFields.forEach(field=>{
+    Object.entries(affCats).forEach(([cat,ov])=>{if(ov[field]!=null)items.push({key:`cat:${cat}:${field}`,label:`Category: ${cat}`,field,from:ov[field],to:newGlobal[field]})})
+    Object.entries(affItems).forEach(([id,ov])=>{if(ov[field]!=null)items.push({key:`item:${id}:${field}`,label:`Item: ${getName(id)}`,field,from:ov[field],to:newGlobal[field]})})
+  })
+
+  if (items.length===0){onConfirm([],[]);return null}
+
+  const selCats  = sel.filter(k=>k.startsWith('cat:')).map(k=>{const[,cat,field]=k.split(':');return{cat,field}})
+  const selItems = sel.filter(k=>k.startsWith('item:')).map(k=>{const[,id,field]=k.split(':');return{id,field}})
+
+  return (
+    <Modal title='Update Overrides?' onClose={onClose}>
+      <p style={{fontSize:13,color:'#6b7280',marginBottom:16}}>You changed global defaults. Select which category/item overrides to reset to the new value:</p>
+      <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:300,overflowY:'auto'}}>
+        {items.map(it=>(
+          <label key={it.key} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',border:'1px solid #e5e7eb',borderRadius:10,cursor:'pointer',background:sel.includes(it.key)?'#f0fdfa':'#fff'}}>
+            <input type='checkbox' checked={sel.includes(it.key)} onChange={()=>toggle(it.key)} style={{accentColor:'#0d9488'}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:600}}>{it.label}</div>
+              <div style={{fontSize:11,color:'#9ca3af'}}>{LABELS[it.field]}: {it.from} → {it.to}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+      <div style={{display:'flex',gap:12,margin:'8px 0'}}>
+        <button onClick={()=>setSel(items.map(i=>i.key))} style={{fontSize:12,color:'#0d9488',border:'none',background:'none',cursor:'pointer'}}>Select all</button>
+        <button onClick={()=>setSel([])} style={{fontSize:12,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>Deselect all</button>
+      </div>
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:4,borderTop:'1px solid #f1f1f1'}}>
+        <Btn ch='Skip — just save global' v='secondary' onClick={()=>onConfirm([],[])}/>
+        <Btn ch={`Apply (${sel.length} selected)`} v='primary' onClick={()=>onConfirm(selCats,selItems)}/>
+      </div>
+    </Modal>
+  )
+}

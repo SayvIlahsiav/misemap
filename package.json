@@ -10,6 +10,7 @@
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.62.2",
     "@supabase/supabase-js": "^2.43.4",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
