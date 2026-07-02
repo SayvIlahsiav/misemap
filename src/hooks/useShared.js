@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { storage } from '../lib/storage.js'
 
-export const useShared = (key, def, cafeId) => {
-  const storageKey = cafeId ? `${key}:${cafeId}` : key
+export const useShared = (key, def, orgId) => {
+  const storageKey = orgId ? `${key}:${orgId}` : key
 
   // Load from localStorage synchronously so the state is immediately populated
   const [d, setD] = useState(() => {
@@ -15,9 +15,9 @@ export const useShared = (key, def, cafeId) => {
   })
   const [ok, setOk] = useState(false)
 
-  // Sync state with local storage or defaults when cafeId changes
+  // Sync state with local storage or defaults when orgId changes
   useEffect(() => {
-    if (!cafeId) {
+    if (!orgId) {
       setD(def)
       setOk(false)
       return
@@ -33,15 +33,15 @@ export const useShared = (key, def, cafeId) => {
       setD(def)
     }
     setOk(false)
-  }, [key, cafeId, storageKey])
+  }, [key, orgId, storageKey])
 
   // Asynchronously fetch latest data from Supabase to sync remote changes
   useEffect(() => {
-    if (!cafeId) return
+    if (!orgId) return
     let active = true
     ;(async () => {
       try {
-        const raw = await storage.get(key, cafeId)
+        const raw = await storage.get(key, orgId)
         if (active) {
           if (raw) {
             let parsed = JSON.parse(raw)
@@ -61,11 +61,11 @@ export const useShared = (key, def, cafeId) => {
       }
     })()
     return () => { active = false }
-  }, [key, cafeId, storageKey])
+  }, [key, orgId, storageKey])
 
   // Save to both localStorage and Supabase
   const save = useCallback(async nd => {
-    if (!cafeId) return
+    if (!orgId) return
     setD(nd)
     const raw = JSON.stringify(nd)
     try {
@@ -74,11 +74,11 @@ export const useShared = (key, def, cafeId) => {
       console.warn('[useShared] localStorage save error', key, e)
     }
     try {
-      await storage.set(key, raw, cafeId)
+      await storage.set(key, raw, orgId)
     } catch (e) {
       console.warn('[useShared] Supabase save error', key, e)
     }
-  }, [key, cafeId, storageKey])
+  }, [key, orgId, storageKey])
 
   return [d, save, ok]
 }

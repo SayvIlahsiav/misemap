@@ -25,16 +25,16 @@ export default function App() {
 }
 
 function AppContent() {
-  const { user, profile, cafe, loading: authLoading, signOut } = useAuth()
-  const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], cafe?.id)
-  const [ints, setInts, intsOk] = useShared(SK.int, [], cafe?.id)
-  const [mis,  setMis,  misOk]  = useShared(SK.mi,  [], cafe?.id)
-  const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC, cafe?.id)
+  const { user, profile, org, loading: authLoading, signOut } = useAuth()
+  const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], org?.id)
+  const [ints, setInts, intsOk] = useShared(SK.int, [], org?.id)
+  const [mis,  setMis,  misOk]  = useShared(SK.mi,  [], org?.id)
+  const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC, org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const isMobile = useIsMobile()
-  const authenticated = !!user && !!cafe
+  const authenticated = !!user && !!org
   const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk)
 
   useEffect(() => {
@@ -65,18 +65,18 @@ function AppContent() {
     </div>
   )
 
-  // 2. Redirect to Auth & Onboarding if not connected to a cafe
+  // 2. Redirect to Auth & Onboarding if not connected to an org
   if (!authenticated) {
     return <AuthPortal />
   }
 
-  // 3. Loading state for Cafe Data fetching
+  // 3. Loading state for Org Data fetching
   if (loading) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:14}}>
       <div style={{background:'#0d9488',borderRadius:16,padding:14,display:'flex'}}>
         <ChefHat size={32} style={{color:'#fff'}}/>
       </div>
-      <div style={{fontSize:15,fontWeight:600,color:'#374151'}}>Loading {cafe?.name}…</div>
+      <div style={{fontSize:15,fontWeight:600,color:'#374151'}}>Loading {org?.name}…</div>
       <div style={{fontSize:12,color:'#9ca3af'}}>Syncing kitchen ingredients and costing data...</div>
     </div>
   )
@@ -167,10 +167,10 @@ function AppContent() {
           </button>
         ))}
 
-        {/* Cafe Tenant & User Information Card */}
+        {/* Organization Tenant & User Information Card */}
         <div style={{marginTop:'auto',padding:'12px 8px 0',borderTop:'1px solid #f5f5f5', display:'flex', flexDirection:'column', gap:10}}>
           <div style={{display:'flex', flexDirection:'column', gap:2, padding:'8px 10px', background:'#fafafa', borderRadius:10, border:'1px solid #f0f0f0'}}>
-            <span style={{fontWeight:700, fontSize:12, color:'#1f2937', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{cafe?.name}</span>
+            <span style={{fontWeight:700, fontSize:12, color:'#1f2937', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{org?.name}</span>
             <span style={{fontSize:11, color:'#6b7280', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{user?.email}</span>
             <span style={{fontSize:9, fontWeight:800, color:'#0d9488', textTransform:'uppercase', letterSpacing:'0.05em', marginTop:2}}>
               {profile?.role}
@@ -194,7 +194,7 @@ function AppContent() {
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} cafe={cafe}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org}/>}
       </div>
     </div>
   )

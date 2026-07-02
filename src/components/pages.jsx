@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { supabase } from '../lib/storage.js'
 import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
 import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
@@ -509,30 +510,77 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, profile, cafe}) => {
-  const { renameCafe } = useAuth()
+export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
+  const { renameOrg } = useAuth()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
   const isMobile              = useIsMobile()
 
-  const [cafeName, setCafeName] = useState(cafe?.name || '')
+  const [orgName, setOrgName] = useState(org?.name || '')
   const [copied, setCopied] = useState(false)
+  const [requests, setRequests] = useState([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
 
-  const handleRenameCafe = async () => {
+  const loadRequests = async () => {
+    if (profile?.role !== 'owner' || !org?.id) return
+    setRequestsLoading(true)
     try {
-      await renameCafe(cafeName)
-      alert('Cafe renamed successfully!')
+      const { data, error } = await supabase
+        .from('org_join_requests')
+        .select('*, profiles(email)')
+        .eq('org_id', org.id)
+        .eq('status', 'pending')
+      if (error) throw error
+      setRequests(data || [])
     } catch (e) {
-      alert(e.message || 'Failed to rename cafe')
+      console.error('[Settings] Error fetching join requests:', e)
+    } finally {
+      setRequestsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadRequests()
+  }, [org?.id, profile?.role])
+
+  const handleRenameOrg = async () => {
+    try {
+      await renameOrg(orgName)
+      alert('Organization renamed successfully!')
+    } catch (e) {
+      alert(e.message || 'Failed to rename organization')
     }
   }
 
   const handleCopyId = () => {
-    if (!cafe?.id) return
-    navigator.clipboard.writeText(cafe.id)
+    if (!org?.id) return
+    navigator.clipboard.writeText(org.id)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleRequestAction = async (requestId, status) => {
+    try {
+      if (status === 'approved') {
+        const { error } = await supabase
+          .from('org_join_requests')
+          .update({ status: 'approved' })
+          .eq('id', requestId)
+        if (error) throw error
+        alert('Request approved! The member is now linked to your organization.')
+      } else {
+        const { error } = await supabase
+          .from('org_join_requests')
+          .delete()
+          .eq('id', requestId)
+        if (error) throw error
+        alert('Request rejected.')
+      }
+      loadRequests()
+    } catch (e) {
+      alert(e.message || 'Failed to handle request action.')
+    }
   }
 
   const updG   = (k,v) => setDraft(d=>({...d,global:{...d.global,[k]:parseFloat(v)||0}}))
@@ -599,36 +647,69 @@ export const SettingsPage = ({pc, setPc, mis, profile, cafe}) => {
         </div>
       </div>
 
-      <Card title='Cafe Profile (Multi-Tenancy)'>
+      <Card title='Organization Profile'>
         <div style={{display:'flex', flexDirection:'column', gap:16}}>
           <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
             <div>
-              <Label>Cafe Name</Label>
+              <Label>Organization Name</Label>
               <div style={{display:'flex', gap:8, marginTop: 4}}>
-                <input type='text' value={cafeName} onChange={e => setCafeName(e.target.value)} disabled={profile?.role !== 'owner'}
+                <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
                   style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#1a1a1a', background:profile?.role !== 'owner' ? '#f9fafb' : '#fff', outline:'none'}}/>
                 {profile?.role === 'owner' && (
-                  <Btn ch='Save' onClick={handleRenameCafe} v='secondary' sz='md' disabled={!cafeName.trim() || cafeName === cafe?.name}/>
+                  <Btn ch='Save' onClick={handleRenameOrg} v="secondary" sz="md" disabled={!orgName.trim() || orgName === org?.name}/>
                 )}
               </div>
             </div>
             <div>
-              <Label>Cafe ID (Share to invite members)</Label>
+              <Label>Organization ID (Share to invite members)</Label>
               <div style={{display:'flex', gap:8, marginTop: 4}}>
-                <input type='text' value={cafe?.id || ''} readOnly
+                <input type='text' value={org?.id || ''} readOnly
                   style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#6b7280', background:'#f9fafb', outline:'none', fontFamily:'monospace'}}/>
-                <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v='secondary' sz='md'/>
+                <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
               </div>
             </div>
           </div>
           <InfoBox color='gray'>
             Your role: <span style={{fontWeight:700, color:'#0d9488'}}>{profile?.role?.toUpperCase()}</span>. 
             {profile?.role === 'owner' 
-              ? ' You can rename the cafe. Other team members can join this workspace using the Cafe ID above.' 
-              : ' Only the owner can rename the cafe. Contact your administrator to make changes.'}
+              ? ' You can rename the organization. Other team members can join this workspace using the Organization ID above.' 
+              : ' Only the owner can rename the organization. Contact your administrator to make changes.'}
           </InfoBox>
         </div>
       </Card>
+
+      {/* Pending Membership Requests (Only visible to Org Owner) */}
+      {profile?.role === 'owner' && (
+        <Card title="Pending Membership Requests">
+          {requestsLoading ? (
+            <p style={{ fontSize: 13, color: '#6b7280' }}>Loading requests...</p>
+          ) : requests.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#6b7280' }}>No pending membership requests.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {requests.map(req => (
+                <div key={req.id} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 16px', background: '#f9fafb', borderRadius: 12, border: '1px solid #f1f1f1'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                      {req.profiles?.email || 'Unknown User'}
+                    </span>
+                    <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>
+                      ID: {req.user_id}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Btn ch="Approve" onClick={() => handleRequestAction(req.id, 'approved')} v="primary" sz="sm" />
+                    <Btn ch="Reject" onClick={() => handleRequestAction(req.id, 'rejected')} v="danger" sz="sm" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <Card title='Global Defaults'>
         <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12}}>
