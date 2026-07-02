@@ -4,7 +4,7 @@ import {
   Plus, Search, Pencil, Trash2
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel } from './UIPrimitives.jsx'
-import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal } from './modals.jsx'
+import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
 import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
@@ -213,6 +213,7 @@ export const IntPage = ({ints, setInts, rms}) => {
   const isMobile          = useIsMobile()
   const filtered = ints.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())||(i?.category||'').toLowerCase().includes(q.toLowerCase()))
   const save = it => { setInts(ints.find(i=>i.id===it.id)?ints.map(i=>i.id===it.id?it:i):[...ints,it]); setModal(null) }
+  const saveBulk = items => { setInts(items); setModal(null) }
   const del  = id => { if(confirm('Delete this intermediate? It may break menu items that use it.')) setInts(ints.filter(i=>i.id!==id)) }
 
   return (
@@ -222,7 +223,10 @@ export const IntPage = ({ints, setInts, rms}) => {
           <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Intermediates</h1>
           <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{ints.length} prep recipes · sauces, marinades, bases</p>
         </div>
-        <Btn ch={<><Plus size={14}/>Add Intermediate</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
+        <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
+          <Btn ch={<><Plus size={14}/>Add Intermediate</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
+          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0}/>
+        </div>
       </div>
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating intermediates.</InfoBox></div>}
       <div style={{position:'relative',marginBottom:16}}>
@@ -266,7 +270,8 @@ export const IntPage = ({ints, setInts, rms}) => {
           })}
         </div>
       )}
-      {modal&&<IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints}/>}
+      {modal==='import' && <BatchImportIntModal rms={rms} ints={ints} onSave={saveBulk} onClose={()=>setModal(null)}/>}
+      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints}/>}
     </div>
   )
 }
@@ -287,6 +292,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
     &&(!filterCat||m.category===filterCat)
   )
   const save = mi => { setMis(mis.find(m=>m.id===mi.id)?mis.map(m=>m.id===mi.id?mi:m):[...mis,mi]); setModal(null) }
+  const saveBulk = items => { setMis(items); setModal(null) }
   const del  = id => { if(confirm('Delete this menu item?')) setMis(mis.filter(m=>m.id!==id)) }
 
   return (
@@ -296,7 +302,10 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Menu Items</h1>
           <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{mis.length} items · full recipe costing and pricing</p>
         </div>
-        <Btn ch={<><Plus size={14}/>Add Menu Item</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
+        <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
+          <Btn ch={<><Plus size={14}/>Add Menu Item</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
+          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0}/>
+        </div>
       </div>
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating menu items.</InfoBox></div>}
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',gap:10,marginBottom:16}}>
@@ -360,7 +369,8 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           </table>
         </div>
       )}
-      {modal&&<MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc}/>}
+      {modal==='import' && <BatchImportMIModal rms={rms} ints={ints} mis={mis} onSave={saveBulk} onClose={()=>setModal(null)} pc={pc}/>}
+      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc}/>}
     </div>
   )
 }

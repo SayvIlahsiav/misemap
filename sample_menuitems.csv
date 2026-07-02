@@ -1,0 +1,6 @@
+item_name,category,sub_category,food_type,sp_multiplier_override,packaging_cost_override,delivery_markup_override,ingredient_name,ingredient_qty,ingredient_unit
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Chicken Breast,250,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Basmati Rice,150,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Tomato Marinara,50,g
+Healthy Breakfast Bowl,Mains,Bowls,Vegetarian,,,Whole Milk,200,ml
+Healthy Breakfast Bowl,Mains,Bowls,Vegetarian,,,Basmati Rice,100,g
