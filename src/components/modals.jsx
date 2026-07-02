@@ -640,6 +640,7 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
   const handleImport = () => {
     let updated = [...ints]
     parsed.forEach(item => {
+      if (item.warnings && item.warnings.length > 0) return // Skip recipes with warnings
       const idx = updated.findIndex(i => (i?.name || '').toLowerCase() === item.name.toLowerCase())
       const { warnings, isDuplicate, ...cleanItem } = item
       
@@ -665,6 +666,8 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
     onClose()
   }
 
+  const importableCount = parsed.filter(item => !item.warnings || item.warnings.length === 0).length
+
   return (
     <Modal title="Batch Import Intermediates" onClose={onClose} wide>
       <p style={{fontSize:13,color:'#6b7280',marginBottom:16,lineHeight:1.5}}>
@@ -688,7 +691,7 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
 
       {parsed.length > 0 ? (
         <div>
-          <SecTitle>Preview (Ready to import {parsed.length} recipes)</SecTitle>
+          <SecTitle>Preview (Ready to import {importableCount} of {parsed.length} recipes)</SecTitle>
           <div style={{border:'1px solid #e5e7eb',borderRadius:12,overflowX:'auto',maxHeight:240,marginBottom:20}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 700}}>
               <thead>
@@ -709,8 +712,8 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
                     </td>
                     <td style={{padding:'8px 12px'}}>
                       {item.warnings.length > 0 ? (
-                        <span style={{color:'#d97706',display:'inline-flex',alignItems:'center',gap:4,fontWeight:600}}>
-                          <AlertTriangle size={11}/> {item.warnings.join(', ')}
+                        <span style={{color:'#dc2626',display:'inline-flex',alignItems:'center',gap:4,fontWeight:600}}>
+                          <AlertTriangle size={11}/> Will Skip ({item.warnings.join(', ')})
                         </span>
                       ) : item.isDuplicate ? (
                         <span style={{color:'#7c3aed',fontWeight:600}}>Will Overwrite</span>
@@ -728,7 +731,7 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
 
           <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,borderTop:'1px solid #f1f1f1'}}>
             <Btn ch="Cancel" v="secondary" onClick={onClose}/>
-            <Btn ch={`Import ${parsed.length} Intermediates`} v="primary" onClick={handleImport}/>
+            <Btn ch={`Import ${importableCount} Intermediates`} v="primary" onClick={handleImport} disabled={importableCount === 0}/>
           </div>
         </div>
       ) : fileName && (
@@ -859,6 +862,7 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
   const handleImport = () => {
     let updated = [...mis]
     parsed.forEach(item => {
+      if (item.warnings && item.warnings.length > 0) return // Skip items with warnings
       const idx = updated.findIndex(m => (m?.name || '').toLowerCase() === item.name.toLowerCase())
       const { warnings, isDuplicate, ...cleanItem } = item
       
@@ -884,6 +888,8 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
     onClose()
   }
 
+  const importableCount = parsed.filter(item => !item.warnings || item.warnings.length === 0).length
+
   return (
     <Modal title="Batch Import Menu Items" onClose={onClose} wide>
       <p style={{fontSize:13,color:'#6b7280',marginBottom:16,lineHeight:1.5}}>
@@ -907,7 +913,7 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
 
       {parsed.length > 0 ? (
         <div>
-          <SecTitle>Preview (Ready to import {parsed.length} menu items)</SecTitle>
+          <SecTitle>Preview (Ready to import {importableCount} of {parsed.length} menu items)</SecTitle>
           <div style={{border:'1px solid #e5e7eb',borderRadius:12,overflowX:'auto',maxHeight:240,marginBottom:20}}>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 700}}>
               <thead>
@@ -929,8 +935,8 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
                     </td>
                     <td style={{padding:'8px 12px'}}>
                       {item.warnings.length > 0 ? (
-                        <span style={{color:'#d97706',display:'inline-flex',alignItems:'center',gap:4,fontWeight:600}}>
-                          <AlertTriangle size={11}/> {item.warnings.join(', ')}
+                        <span style={{color:'#dc2626',display:'inline-flex',alignItems:'center',gap:4,fontWeight:600}}>
+                          <AlertTriangle size={11}/> Will Skip ({item.warnings.join(', ')})
                         </span>
                       ) : item.isDuplicate ? (
                         <span style={{color:'#7c3aed',fontWeight:600}}>Will Overwrite</span>
@@ -948,7 +954,7 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
 
           <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,borderTop:'1px solid #f1f1f1'}}>
             <Btn ch="Cancel" v="secondary" onClick={onClose}/>
-            <Btn ch={`Import ${parsed.length} Menu Items`} v="primary" onClick={handleImport}/>
+            <Btn ch={`Import ${importableCount} Menu Items`} v="primary" onClick={handleImport} disabled={importableCount === 0}/>
           </div>
         </div>
       ) : fileName && (
