@@ -109,6 +109,7 @@ export const RMPage = ({rms, setRms}) => {
   const isMobile          = useIsMobile()
   const filtered = rms.filter(r=>(r?.name || '').toLowerCase().includes(q.toLowerCase())||(r?.category||'').toLowerCase().includes(q.toLowerCase()))
   const save = rm => { setRms(rms.find(r=>r.id===rm.id)?rms.map(r=>r.id===rm.id?rm:r):[...rms,rm]); setModal(null) }
+  const saveBulk = items => { setRms(items); setModal(null) }
   const del  = id => { if(confirm('Delete this raw material? It may break recipes that use it.')) setRms(rms.filter(r=>r.id!==id)) }
 
   return (
@@ -177,7 +178,7 @@ export const RMPage = ({rms, setRms}) => {
           </table>
         </div>
       )}
-      {modal==='import' && <BatchImportModal rms={rms} onSave={save} onClose={()=>setModal(null)}/>}
+      {modal==='import' && <BatchImportModal rms={rms} onSave={saveBulk} onClose={()=>setModal(null)}/>}
       {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)}/>}
     </div>
   )
