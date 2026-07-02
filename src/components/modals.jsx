@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Sparkles, AlertTriangle, RotateCcw, Upload, Download, Check } from 'lucide-react'
-import { Modal, Btn, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill } from './UIPrimitives.jsx'
+import { Modal, Btn, Bdg, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill } from './UIPrimitives.jsx'
 import { AiPanel } from './AiPanel.jsx'
 import { IngPicker } from './IngPicker.jsx'
 import { aiSuggest } from '../services/ai.js'
