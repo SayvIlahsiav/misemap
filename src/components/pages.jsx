@@ -331,7 +331,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'#f9fafb'}}>
-                {['Item','Category','Type','Food Cost','SP','Pkg','Delivery Price','FC%',''].map(h=>(
+                {['Item','Category','Type','Food Cost','SP','Pkg','Takeaway Price','Delivery Price','FC%',''].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -349,6 +349,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
                   <td style={{padding:'10px 14px',fontWeight:600}}>{fc(m.food)}</td>
                   <td style={{padding:'10px 14px',fontWeight:800,color:'#111'}}>{fc(m.sp)}</td>
                   <td style={{padding:'10px 14px',color:'#6b7280'}}>{fc(m.pkg)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:700,color:'#374151'}}>{fc(m.tp)}</td>
                   <td style={{padding:'10px 14px',fontWeight:800,color:'#0f766e'}}>{fc(m.dp)}</td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}>
