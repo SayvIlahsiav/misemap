@@ -4,7 +4,7 @@ import {
   Plus, Search, Pencil, Trash2
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel } from './UIPrimitives.jsx'
-import { RMModal, IntModal, MIModal, CascadeModal } from './modals.jsx'
+import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
 import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
@@ -118,7 +118,10 @@ export const RMPage = ({rms, setRms}) => {
           <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Raw Materials</h1>
           <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{rms.length} ingredients · the foundation of all recipes</p>
         </div>
-        <Btn ch={<><Plus size={14}/>Add Raw Material</>} v='primary' onClick={()=>setModal('new')}/>
+        <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
+          <Btn ch={<><Plus size={14}/>Add Raw Material</>} v='primary' onClick={()=>setModal('new')}/>
+          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')}/>
+        </div>
       </div>
       <div style={{position:'relative',marginBottom:16}}>
         <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'#d1d5db'}}/>
@@ -174,7 +177,8 @@ export const RMPage = ({rms, setRms}) => {
           </table>
         </div>
       )}
-      {modal&&<RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)}/>}
+      {modal==='import' && <BatchImportModal rms={rms} onSave={save} onClose={()=>setModal(null)}/>}
+      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)}/>}
     </div>
   )
 }
