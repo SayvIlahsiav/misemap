@@ -12,23 +12,43 @@ import { useIsMobile } from '../hooks/useIsMobile.js'
 // ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
-export const Dashboard = ({rms, ints, mis, pc}) => {
+export const Dashboard = ({rms, ints, mis, pc, onNavigate}) => {
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
   const alerts    = pricings.filter(m=>m.pct>threshold)
   const warnings  = pricings.filter(m=>m.pct>threshold*0.85&&m.pct<=threshold)
   const isMobile  = useIsMobile()
 
-  const StatCard = ({icon:Icon,label,value,sub,color}) => (
-    <div style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:16,padding:18,display:'flex',alignItems:'center',gap:14}}>
-      <div style={{padding:10,borderRadius:12,background:color.bg}}><Icon size={20} style={{color:color.ico}}/></div>
-      <div>
-        <div style={{fontSize:26,fontWeight:800,color:'#111',lineHeight:1}}>{value}</div>
-        <div style={{fontSize:12,fontWeight:600,color:'#374151',marginTop:2}}>{label}</div>
-        <div style={{fontSize:11,color:'#9ca3af'}}>{sub}</div>
+  const StatCard = ({icon:Icon,label,value,sub,color,onClick}) => {
+    const [hover, setHover] = useState(false)
+    return (
+      <div
+        onClick={onClick}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          background:'#fff',
+          border:'1px solid #f1f1f1',
+          borderRadius:16,
+          padding:18,
+          display:'flex',
+          alignItems:'center',
+          gap:14,
+          cursor:'pointer',
+          transform: hover ? 'translateY(-2px)' : 'none',
+          boxShadow: hover ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+          transition:'all 0.2s ease'
+        }}
+      >
+        <div style={{padding:10,borderRadius:12,background:color.bg}}><Icon size={20} style={{color:color.ico}}/></div>
+        <div>
+          <div style={{fontSize:26,fontWeight:800,color:'#111',lineHeight:1}}>{value}</div>
+          <div style={{fontSize:12,fontWeight:600,color:'#374151',marginTop:2}}>{label}</div>
+          <div style={{fontSize:11,color:'#9ca3af'}}>{sub}</div>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div>
@@ -37,10 +57,10 @@ export const Dashboard = ({rms, ints, mis, pc}) => {
         <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>Live overview · shared across your team</p>
       </div>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
-        <StatCard icon={Package}        label='Raw Materials' value={rms.length} sub='ingredients tracked'              color={{bg:'#eff6ff',ico:'#2563eb'}}/>
-        <StatCard icon={FlaskConical}   label='Intermediates' value={ints.length} sub='prep recipes'                   color={{bg:'#ccfbf1',ico:'#0d9488'}}/>
-        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='on your menu'                    color={{bg:'#ccfbf1',ico:'#0d9488'}}/>
-        <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'#fee2e2',ico:'#dc2626'}:{bg:'#dcfce7',ico:'#16a34a'}}/>
+        <StatCard icon={Package}        label='Raw Materials' value={rms.length} sub='ingredients tracked'              color={{bg:'#eff6ff',ico:'#2563eb'}} onClick={() => onNavigate('raw')}/>
+        <StatCard icon={FlaskConical}   label='Intermediates' value={ints.length} sub='prep recipes'                   color={{bg:'#ccfbf1',ico:'#0d9488'}} onClick={() => onNavigate('intermediates')}/>
+        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='on your menu'                    color={{bg:'#ccfbf1',ico:'#0d9488'}} onClick={() => onNavigate('menu')}/>
+        <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'#fee2e2',ico:'#dc2626'}:{bg:'#dcfce7',ico:'#16a34a'}} onClick={() => onNavigate('menu')}/>
       </div>
 
       {alerts.length>0&&(

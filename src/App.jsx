@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X
 } from 'lucide-react'
@@ -7,12 +7,19 @@ import { useIsMobile } from './hooks/useIsMobile.js'
 import { SK, DEFAULT_PC } from './constants.js'
 import { Dashboard, RMPage, IntPage, MIPage, SettingsPage } from './components/pages.jsx'
 
+const getTabFromPath = () => {
+  const path = window.location.pathname.replace(/^\/|\/$/g, '')
+  if (path === '' || path === 'dashboard') return 'dashboard'
+  if (['raw', 'intermediates', 'menu', 'settings'].includes(path)) return path
+  return 'dashboard'
+}
+
 export default function App() {
   const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [])
   const [ints, setInts, intsOk] = useShared(SK.int, [])
   const [mis,  setMis,  misOk]  = useShared(SK.mi,  [])
   const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC)
-  const [tab,  setTab]          = useState('dashboard')
+  const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const isMobile = useIsMobile()
@@ -26,7 +33,19 @@ export default function App() {
     {id:'settings',      icon:Settings,          label:'Settings'},
   ]
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setTab(getTabFromPath())
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
   const handleTabSelect = (id) => {
+    const targetPath = id === 'dashboard' ? '/' : `/${id}`
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath)
+    }
     setTab(id)
     setMobileMenuOpen(false)
   }
@@ -126,7 +145,7 @@ export default function App() {
 
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',maxWidth:1120,overflowX:'hidden'}}>
-        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc}/>}
+        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect}/>}
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
