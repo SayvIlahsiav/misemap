@@ -157,7 +157,9 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const act_spm = f.sp_multiplier_override ?? eff_spm.v
   const act_pkg = f.packaging_cost_override ?? eff_pkg.v
   const act_dm  = f.delivery_markup_override ?? eff_dm.v
-  const sp  = f.selling_price_override ?? (food * act_spm)
+  const sugg_sp = Math.round((food * act_spm) / 5) * 5
+  const sugg_pct = sugg_sp > 0 ? (food / sugg_sp) * 100 : 0
+  const sp  = f.selling_price_override ?? sugg_sp
   const dp  = (sp + act_pkg) * (1 + act_dm/100)
   const pct = sp>0?(food/sp)*100:0
   const nut = miNut(f,rms,ints)
@@ -243,8 +245,8 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(food * act_spm)} (Suggested)</span>
-              <button onClick={()=>upd('selling_price_override',parseFloat((food * act_spm).toFixed(2)))} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)} (Suggested)</span>
+              <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
             </div>
           )}
         </div>
@@ -260,12 +262,42 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
               </div>
             )}
             <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3,1fr)',gap:14}}>
-              {[['Food Cost',fc(food)],[f.selling_price_override != null ? 'Selling Price (Custom)' : 'Selling Price ('+act_spm+'×)',fc(sp)],['Packaging',fc(act_pkg)],['Delivery Markup',act_dm+'%'],['Delivery Price',fc(dp)],['FC%',fp(pct)]].map(([l,vl])=>(
-                <div key={l}>
-                  <div style={{fontSize:11,color:'#6b7280'}}>{l}</div>
-                  <div style={{fontSize:16,fontWeight:800,color:l==='FC%'?(pct>threshold?'#991b1b':pct>threshold*0.85?'#134e4a':'#166534'):'#111'}}>{vl}</div>
-                </div>
-              ))}
+              <div key="food_cost">
+                <div style={{fontSize:11,color:'#6b7280'}}>Food Cost</div>
+                <div style={{fontSize:16,fontWeight:800,color:'#111'}}>{fc(food)}</div>
+              </div>
+              <div key="sugg_sp">
+                <div style={{fontSize:11,color:'#6b7280'}}>Suggested Price</div>
+                <div style={{fontSize:16,fontWeight:800,color:'#111'}}>{fc(sugg_sp)}</div>
+              </div>
+              <div key="sugg_pct">
+                <div style={{fontSize:11,color:'#6b7280'}}>Suggested FC%</div>
+                <div style={{fontSize:16,fontWeight:800,color:sugg_pct>threshold?'#991b1b':sugg_pct>threshold*0.85?'#c2410c':'#166534'}}>{fp(sugg_pct)}</div>
+              </div>
+              {f.selling_price_override != null && (
+                <>
+                  <div key="custom_sp">
+                    <div style={{fontSize:11,color:'#6b7280'}}>Custom Price</div>
+                    <div style={{fontSize:16,fontWeight:800,color:'#0d9488'}}>{fc(sp)}</div>
+                  </div>
+                  <div key="custom_pct">
+                    <div style={{fontSize:11,color:'#6b7280'}}>Custom FC%</div>
+                    <div style={{fontSize:16,fontWeight:800,color:pct>threshold?'#991b1b':pct>threshold*0.85?'#c2410c':'#166534'}}>{fp(pct)}</div>
+                  </div>
+                </>
+              )}
+              <div key="pkg">
+                <div style={{fontSize:11,color:'#6b7280'}}>Packaging</div>
+                <div style={{fontSize:16,fontWeight:800,color:'#111'}}>{fc(act_pkg)}</div>
+              </div>
+              <div key="markup">
+                <div style={{fontSize:11,color:'#6b7280'}}>Delivery Markup</div>
+                <div style={{fontSize:16,fontWeight:800,color:'#111'}}>{act_dm}%</div>
+              </div>
+              <div key="dp">
+                <div style={{fontSize:11,color:'#6b7280'}}>Delivery Price</div>
+                <div style={{fontSize:16,fontWeight:800,color:'#0f766e'}}>{fc(dp)}</div>
+              </div>
             </div>
           </div>
 
