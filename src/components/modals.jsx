@@ -339,7 +339,7 @@ export const BatchImportModal = ({rms, onSave, onClose}) => {
           
           let food_type = row.food_type || 'Vegetarian'
           if (!FOOD_TYPES.includes(food_type)) {
-            const found = FOOD_TYPES.find(f => f.toLowerCase() === food_type.toLowerCase())
+            const found = FOOD_TYPES.find(f => (f || '').toLowerCase() === (food_type || '').toLowerCase())
             food_type = found || 'Vegetarian'
           }
           
@@ -367,9 +367,9 @@ export const BatchImportModal = ({rms, onSave, onClose}) => {
             buy_unit, pack_cost, pack_qty, usage_unit, conversion,
             calories, carbs, protein, fats, fiber, sugar, caffeine,
             warnings,
-            isDuplicate: rms.some(r => r.name.toLowerCase() === name.toLowerCase())
+            isDuplicate: rms.some(r => (r?.name || '').toLowerCase() === (name || '').toLowerCase())
           }
-        }).filter(r => r.name.trim())
+        }).filter(r => (r.name || '').trim())
         
         setParsed(validated)
       } catch (err) {
@@ -404,7 +404,7 @@ export const BatchImportModal = ({rms, onSave, onClose}) => {
   const handleImport = () => {
     let updated = [...rms]
     parsed.forEach(item => {
-      const idx = updated.findIndex(r => r.name.toLowerCase() === item.name.toLowerCase())
+      const idx = updated.findIndex(r => (r?.name || '').toLowerCase() === (item.name || '').toLowerCase())
       const { warnings, isDuplicate, ...cleanItem } = item
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...cleanItem }

@@ -107,7 +107,7 @@ export const RMPage = ({rms, setRms}) => {
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
-  const filtered = rms.filter(r=>r.name.toLowerCase().includes(q.toLowerCase())||(r.category||'').toLowerCase().includes(q.toLowerCase()))
+  const filtered = rms.filter(r=>(r?.name || '').toLowerCase().includes(q.toLowerCase())||(r?.category||'').toLowerCase().includes(q.toLowerCase()))
   const save = rm => { setRms(rms.find(r=>r.id===rm.id)?rms.map(r=>r.id===rm.id?rm:r):[...rms,rm]); setModal(null) }
   const del  = id => { if(confirm('Delete this raw material? It may break recipes that use it.')) setRms(rms.filter(r=>r.id!==id)) }
 
@@ -190,7 +190,7 @@ export const IntPage = ({ints, setInts, rms}) => {
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
-  const filtered = ints.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())||(i.category||'').toLowerCase().includes(q.toLowerCase()))
+  const filtered = ints.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())||(i?.category||'').toLowerCase().includes(q.toLowerCase()))
   const save = it => { setInts(ints.find(i=>i.id===it.id)?ints.map(i=>i.id===it.id?it:i):[...ints,it]); setModal(null) }
   const del  = id => { if(confirm('Delete this intermediate? It may break menu items that use it.')) setInts(ints.filter(i=>i.id!==id)) }
 
@@ -262,7 +262,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
   const filtered  = pricings.filter(m=>
-    (m.name.toLowerCase().includes(q.toLowerCase())||(m.category||'').toLowerCase().includes(q.toLowerCase()))
+    ((m?.name || '').toLowerCase().includes(q.toLowerCase())||(m?.category||'').toLowerCase().includes(q.toLowerCase()))
     &&(!filterCat||m.category===filterCat)
   )
   const save = mi => { setMis(mis.find(m=>m.id===mi.id)?mis.map(m=>m.id===mi.id?mi:m):[...mis,mi]); setModal(null) }

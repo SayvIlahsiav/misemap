@@ -9,7 +9,7 @@ export const IngPicker = ({ings, setIngs, rms, ints, noInts=false}) => {
     ...rms.map(r=>({...r,type:'raw',du:r.usage_unit})),
     ...(noInts?[]:ints.map(i=>({...i,type:'intermediate',du:i.yield_unit}))),
   ],[rms,ints,noInts])
-  const filtered = q ? all.filter(i=>i.name.toLowerCase().includes(q.toLowerCase())) : []
+  const filtered = q ? all.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())) : []
 
   const add = item => {
     if (ings.find(i=>i.id===item.id)) return
