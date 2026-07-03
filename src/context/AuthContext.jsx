@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/storage.js'
+import { useUI } from './UIContext.jsx'
 import sampleIngredientsCsv from '../../sample_ingredients.csv?raw'
 import sampleIntermediatesCsv from '../../sample_intermediates.csv?raw'
 import sampleMenuItemsCsv from '../../sample_menuitems.csv?raw'
@@ -45,7 +46,11 @@ export const AuthProvider = ({ children }) => {
   const [profile, setProfile] = useState(null)
   const [org, setOrg] = useState(null)
   const [pendingRequest, setPendingRequest] = useState(null)
+  const [pendingInvitation, setPendingInvitation] = useState(null)
+  const [invitedEmails, setInvitedEmails] = useState([])
   const [loading, setLoading] = useState(true)
+
+  const { showToast } = useUI()
 
   const fetchProfile = async (u) => {
     setUser(u)
@@ -82,9 +87,29 @@ export const AuthProvider = ({ children }) => {
         if (orgError) throw orgError
         setOrg(o)
         setPendingRequest(null)
+        setPendingInvitation(null)
+
+        // Fetch invited emails list from kv_store
+        const { data: inviteData } = await supabase
+          .from('kv_store')
+          .select('value')
+          .eq('org_id', prof.org_id)
+          .eq('key', 'invited_emails')
+          .maybeSingle()
+        if (inviteData?.value) {
+          try {
+            setInvitedEmails(JSON.parse(inviteData.value))
+          } catch(e) {
+            setInvitedEmails([])
+          }
+        } else {
+          setInvitedEmails([])
+        }
       } else {
         setOrg(null)
-        // If not in an org, check for a pending join request
+        setInvitedEmails([])
+
+        // Check for active join request
         const { data: req, error: reqError } = await supabase
           .from('org_join_requests')
           .select('*, organizations(name)')
@@ -93,6 +118,36 @@ export const AuthProvider = ({ children }) => {
           .maybeSingle()
         if (reqError) throw reqError
         setPendingRequest(req)
+
+        // If not in an org, check for invitations matching user email
+        const { data: invites, error: inviteError } = await supabase
+          .from('kv_store')
+          .select('org_id, value')
+          .eq('key', 'invited_emails')
+
+        if (!inviteError && invites) {
+          const myInvite = invites.find(inv => {
+            try {
+              const emails = JSON.parse(inv.value)
+              return Array.isArray(emails) && emails.includes(u.email.trim().toLowerCase())
+            } catch(e) {
+              return false
+            }
+          })
+
+          if (myInvite) {
+            const { data: o } = await supabase
+              .from('organizations')
+              .select('name')
+              .eq('id', myInvite.org_id)
+              .maybeSingle()
+            setPendingInvitation({ org_id: myInvite.org_id, name: o?.name || 'an organization' })
+          } else {
+            setPendingInvitation(null)
+          }
+        } else {
+          setPendingInvitation(null)
+        }
       }
     } catch (err) {
       console.error('[AuthContext] Error fetching profile/org/requests:', err)
@@ -116,6 +171,8 @@ export const AuthProvider = ({ children }) => {
           setProfile(null)
           setOrg(null)
           setPendingRequest(null)
+          setPendingInvitation(null)
+          setInvitedEmails([])
           setLoading(false)
         }
       } catch (err) {
@@ -134,6 +191,8 @@ export const AuthProvider = ({ children }) => {
           setProfile(null)
           setOrg(null)
           setPendingRequest(null)
+          setPendingInvitation(null)
+          setInvitedEmails([])
           setLoading(false)
         }
       })
@@ -191,7 +250,8 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     setLoading(true)
     try {
-      await supabase.auth.signOut()
+      // Fire-and-forget to clear server session, but do not await network resolution
+      supabase.auth.signOut().catch(err => console.warn('[AuthContext] async signOut error:', err))
     } catch (err) {
       console.warn('[AuthContext] Error during signOut:', err)
     } finally {
@@ -199,109 +259,79 @@ export const AuthProvider = ({ children }) => {
       setProfile(null)
       setOrg(null)
       setPendingRequest(null)
+      setPendingInvitation(null)
+      setInvitedEmails([])
       setLoading(false)
     }
   }
 
+  const makeId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0
+      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+      return v.toString(16)
+    })
+  }
+
   const seedSampleData = async (orgId) => {
     try {
-      // 1. Parse CSV Files
-      const rawIngredients = parseCSV(sampleIngredientsCsv)
-      const rawIntermediates = parseCSV(sampleIntermediatesCsv)
-      const rawMenuItems = parseCSV(sampleMenuItemsCsv)
-
-      // Helper to generate a unique item ID
-      const makeId = () => `id${Date.now()}${Math.random().toString(36).slice(2, 7)}`
-
-      // 2. Map & Save Raw Materials (mm_rm)
-      const rms = rawIngredients.map((row) => ({
-        id: makeId(),
-        name: row.name,
-        category: row.category || 'General',
+      const rms = parseCSV(sampleIngredientsCsv).map((row, idx) => ({
+        id: `rm_${idx + 1}`,
+        name: row.name || 'Unnamed Ingredient',
+        category: row.category || 'Other',
         sub_category: row.sub_category || '',
         food_type: row.food_type || 'Vegetarian',
         buy_unit: row.buy_unit || 'kg',
         pack_cost: parseFloat(row.pack_cost) || 0,
         pack_qty: parseFloat(row.pack_qty) || 1,
         usage_unit: row.usage_unit || 'g',
-        conversion: parseFloat(row.conversion) || 1,
+        conversion: parseFloat(row.conversion) || 1000,
         calories: parseFloat(row.calories) || 0,
         carbs: parseFloat(row.carbs) || 0,
         protein: parseFloat(row.protein) || 0,
         fats: parseFloat(row.fats) || 0,
         fiber: parseFloat(row.fiber) || 0,
         sugar: parseFloat(row.sugar) || 0,
-        caffeine: parseFloat(row.caffeine) || 0
+        caffeine: parseFloat(row.caffeine) || 0,
       }))
 
-      // 3. Map & Save Intermediates (mm_int)
-      const intermediatesGrouped = {}
-      rawIntermediates.forEach(row => {
-        if (!row.recipe_name) return
-        if (!intermediatesGrouped[row.recipe_name]) {
-          intermediatesGrouped[row.recipe_name] = []
+      const ints = parseCSV(sampleIntermediatesCsv).map((row, idx) => {
+        let ings = []
+        try {
+          ings = JSON.parse(row.ingredients || '[]')
+        } catch (e) {
+          ings = []
         }
-        intermediatesGrouped[row.recipe_name].push(row)
-      })
-
-      const ints = Object.keys(intermediatesGrouped).map(recipeName => {
-        const rows = intermediatesGrouped[recipeName]
-        const ingredients = rows.map(r => {
-          const matchedRm = rms.find(rm => rm.name.toLowerCase() === r.ingredient_name.toLowerCase())
-          return {
-            id: matchedRm ? matchedRm.id : makeId(),
-            type: 'raw',
-            qty: parseFloat(r.ingredient_qty) || 0,
-            unit: r.ingredient_unit || 'g'
-          }
-        })
         return {
-          id: makeId(),
-          name: recipeName,
-          category: rows[0].category || 'General',
-          yield_qty: parseFloat(rows[0].yield_qty) || 1,
-          yield_unit: rows[0].yield_unit || 'g',
-          ingredients
+          id: `int_${idx + 1}`,
+          name: row.name || 'Unnamed Intermediate',
+          category: row.category || 'Other',
+          yield_qty: parseFloat(row.yield_qty) || 1000,
+          yield_unit: row.yield_unit || 'g',
+          ingredients: ings
         }
       })
 
-      // 4. Map & Save Menu Items (mm_mi)
-      const menuItemsGrouped = {}
-      rawMenuItems.forEach(row => {
-        if (!row.item_name) return
-        if (!menuItemsGrouped[row.item_name]) {
-          menuItemsGrouped[row.item_name] = []
+      const mis = parseCSV(sampleMenuItemsCsv).map((row, idx) => {
+        let ings = []
+        try {
+          ings = JSON.parse(row.ingredients || '[]')
+        } catch (e) {
+          ings = []
         }
-        menuItemsGrouped[row.item_name].push(row)
-      })
-
-      const mis = Object.keys(menuItemsGrouped).map(itemName => {
-        const rows = menuItemsGrouped[itemName]
-        const ingredients = rows.map(r => {
-          // Check raw materials first, then intermediates
-          const matchedRm = rms.find(rm => rm.name.toLowerCase() === r.ingredient_name.toLowerCase())
-          const matchedInt = ints.find(i => i.name.toLowerCase() === r.ingredient_name.toLowerCase())
-          return {
-            id: matchedRm ? matchedRm.id : (matchedInt ? matchedInt.id : makeId()),
-            type: matchedRm ? 'raw' : (matchedInt ? 'int' : 'raw'),
-            qty: parseFloat(r.ingredient_qty) || 0,
-            unit: r.ingredient_unit || 'g'
-          }
-        })
         return {
-          id: makeId(),
-          name: itemName,
-          category: rows[0].category || 'General',
-          sub_category: rows[0].sub_category || '',
-          food_type: rows[0].food_type || 'Vegetarian',
-          ingredients,
-          sp_multiplier_override: rows[0].sp_multiplier_override ? parseFloat(rows[0].sp_multiplier_override) : null,
-          packaging_cost_override: rows[0].packaging_cost_override ? parseFloat(rows[0].packaging_cost_override) : null,
-          delivery_markup_override: rows[0].delivery_markup_override ? parseFloat(rows[0].delivery_markup_override) : null
+          id: `mi_${idx + 1}`,
+          name: row.name || 'Unnamed Menu Item',
+          category: row.category || 'Other',
+          sub_category: row.sub_category || '',
+          food_type: row.food_type || 'Vegetarian',
+          dine_in_sp: parseFloat(row.dine_in_sp) || 0,
+          takeaway_sp: parseFloat(row.takeaway_sp) || 0,
+          delivery_sp: parseFloat(row.delivery_sp) || 0,
+          ingredients: ings
         }
       })
 
-      // Write parsed templates to Supabase for the new org
       const { error: errorRm } = await supabase.from('kv_store').upsert({ org_id: orgId, key: 'mm_rm', value: JSON.stringify(rms) }, { onConflict: 'org_id,key' })
       if (errorRm) throw errorRm
 
@@ -323,7 +353,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const orgId = makeId()
       const newOrg = { id: orgId, name, owner_id: user.id }
-      const { error: err1 } = await supabase.from('orgs').insert(newOrg)
+      const { error: err1 } = await supabase.from('organizations').insert(newOrg)
       if (err1) throw err1
       
       const { error: err2 } = await supabase.from('profiles').update({ org_id: orgId, role: 'owner' }).eq('id', user.id)
@@ -344,9 +374,9 @@ export const AuthProvider = ({ children }) => {
     if (!user) throw new Error('You must be signed in to join an organization.')
     setLoading(true)
     try {
-      const { data: o, error: err1 } = await supabase.from('orgs').select('id').eq('id', orgId).single()
+      const { data: o, error: err1 } = await supabase.from('organizations').select('id').eq('id', orgId).single()
       if (err1 || !o) throw new Error('Organization ID not found.')
-      const { error: err2 } = await supabase.from('org_join_requests').insert({ org_id: orgId, profile_id: user.id, status: 'pending' })
+      const { error: err2 } = await supabase.from('org_join_requests').insert({ org_id: orgId, user_id: user.id, status: 'pending' })
       if (err2) throw err2
       await refreshProfile()
     } catch (err) {
@@ -360,11 +390,155 @@ export const AuthProvider = ({ children }) => {
     if (!user) return
     setLoading(true)
     try {
-      const { error } = await supabase.from('org_join_requests').delete().eq('profile_id', user.id).eq('status', 'pending')
+      const { error } = await supabase.from('org_join_requests').delete().eq('user_id', user.id).eq('status', 'pending')
       if (error) throw error
       await refreshProfile()
     } catch (err) {
       showToast(err.message || 'Failed to cancel join request', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const inviteMember = async (email) => {
+    if (!org?.id) throw new Error('No active organization connection.')
+    if (profile?.role !== 'owner') throw new Error('Only the owner can invite members.')
+    
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail) throw new Error('Please enter a valid email.')
+    
+    const { data, error: getErr } = await supabase
+      .from('kv_store')
+      .select('value')
+      .eq('org_id', org.id)
+      .eq('key', 'invited_emails')
+      .maybeSingle()
+    
+    if (getErr) throw getErr
+    
+    let emails = []
+    if (data?.value) {
+      try {
+        emails = JSON.parse(data.value)
+        if (!Array.isArray(emails)) emails = []
+      } catch (e) {
+        emails = []
+      }
+    }
+    
+    if (emails.includes(cleanEmail)) throw new Error('This email has already been invited.')
+    
+    const newEmails = [...emails, cleanEmail]
+    
+    const { error: setErr } = await supabase
+      .from('kv_store')
+      .upsert({ org_id: org.id, key: 'invited_emails', value: JSON.stringify(newEmails) }, { onConflict: 'org_id,key' })
+      
+    if (setErr) throw setErr
+    setInvitedEmails(newEmails)
+    showToast(`Invitation sent to ${cleanEmail}!`, 'success')
+  }
+
+  const revokeInvite = async (email) => {
+    if (!org?.id) throw new Error('No active organization connection.')
+    if (profile?.role !== 'owner') throw new Error('Only the owner can manage invitations.')
+    
+    const cleanEmail = email.trim().toLowerCase()
+    const { data, error: getErr } = await supabase
+      .from('kv_store')
+      .select('value')
+      .eq('org_id', org.id)
+      .eq('key', 'invited_emails')
+      .maybeSingle()
+      
+    if (getErr) throw getErr
+    
+    let emails = []
+    if (data?.value) {
+      try {
+        emails = JSON.parse(data.value)
+      } catch (e) {
+        emails = []
+      }
+    }
+    
+    const newEmails = emails.filter(e => e !== cleanEmail)
+    
+    const { error: setErr } = await supabase
+      .from('kv_store')
+      .upsert({ org_id: org.id, key: 'invited_emails', value: JSON.stringify(newEmails) }, { onConflict: 'org_id,key' })
+      
+    if (setErr) throw setErr
+    setInvitedEmails(newEmails)
+    showToast(`Invitation revoked.`, 'info')
+  }
+
+  const acceptInvitation = async () => {
+    if (!user || !pendingInvitation) return
+    setLoading(true)
+    try {
+      const orgId = pendingInvitation.org_id
+      
+      const { error: linkErr } = await supabase
+        .from('profiles')
+        .update({ org_id: orgId, role: 'member' })
+        .eq('id', user.id)
+        
+      if (linkErr) throw linkErr
+      
+      const { data, error: getErr } = await supabase
+        .from('kv_store')
+        .select('value')
+        .eq('org_id', orgId)
+        .eq('key', 'invited_emails')
+        .maybeSingle()
+        
+      if (!getErr && data?.value) {
+        try {
+          let emails = JSON.parse(data.value)
+          emails = emails.filter(e => e !== user.email.trim().toLowerCase())
+          await supabase
+            .from('kv_store')
+            .upsert({ org_id: orgId, key: 'invited_emails', value: JSON.stringify(emails) }, { onConflict: 'org_id,key' })
+        } catch(e) {}
+      }
+      
+      setPendingInvitation(null)
+      await refreshProfile()
+    } catch (err) {
+      showToast(err.message || 'Failed to accept invitation', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const declineInvitation = async () => {
+    if (!user || !pendingInvitation) return
+    setLoading(true)
+    try {
+      const orgId = pendingInvitation.org_id
+      
+      const { data, error: getErr } = await supabase
+        .from('kv_store')
+        .select('value')
+        .eq('org_id', orgId)
+        .eq('key', 'invited_emails')
+        .maybeSingle()
+        
+      if (!getErr && data?.value) {
+        try {
+          let emails = JSON.parse(data.value)
+          emails = emails.filter(e => e !== user.email.trim().toLowerCase())
+          await supabase
+            .from('kv_store')
+            .upsert({ org_id: orgId, key: 'invited_emails', value: JSON.stringify(emails) }, { onConflict: 'org_id,key' })
+        } catch(e) {}
+      }
+      
+      setPendingInvitation(null)
+      await refreshProfile()
+    } catch (err) {
+      showToast(err.message || 'Failed to decline invitation', 'error')
     } finally {
       setLoading(false)
     }
@@ -398,9 +572,10 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      user, profile, org, pendingRequest, loading,
+      user, profile, org, pendingRequest, pendingInvitation, invitedEmails, loading,
       signIn, signUp, signInWithGoogle, signOut,
-      createOrg, joinOrg, cancelJoinRequest, renameOrg, refreshProfile, seedSampleData
+      createOrg, joinOrg, cancelJoinRequest, renameOrg, refreshProfile, seedSampleData,
+      inviteMember, revokeInvite, acceptInvitation, declineInvitation
     }}>
       {children}
     </AuthContext.Provider>

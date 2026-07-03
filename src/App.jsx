@@ -161,7 +161,7 @@ function ConfirmDialog() {
 }
 
 function AppContent() {
-  const { user, profile, org, loading: authLoading, signOut, seedSampleData } = useAuth()
+  const { user, profile, org, loading: authLoading, signOut, seedSampleData, invitedEmails, inviteMember, revokeInvite } = useAuth()
   const { theme, toggleTheme } = useUI()
   const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], org?.id)
   const [ints, setInts, intsOk] = useShared(SK.int, [], org?.id)
@@ -247,11 +247,14 @@ function AppContent() {
     display: 'flex',
     flexDirection: 'column',
     padding: '20px 12px',
-    position: 'sticky',
+    position: 'fixed',
     top: 0,
+    left: 0,
+    bottom: 0,
     height: '100vh',
     flexShrink: 0,
-    overflowY: 'auto'
+    overflowY: 'auto',
+    zIndex: 80
   }
 
   return (
@@ -363,12 +366,12 @@ function AppContent() {
       </div>
 
       {/* ── Main content ── */}
-      <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',maxWidth:1120,overflowX:'hidden'}}>
+      <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',marginLeft: isMobile ? 0 : 220,overflowX:'hidden'}}>
         {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis}/>}
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite}/>}
       </div>
     </div>
   )

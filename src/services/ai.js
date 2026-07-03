@@ -102,29 +102,50 @@ Rules:
 - Output ONLY the JSON object.`
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 500,
-          responseMimeType: 'application/json'
-        },
-      }),
-    }
-  )
+  const models = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+  let lastError = null
+  let data = null
+  let modelUsed = ''
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `Gemini API error ${res.status}`)
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 500,
+              responseMimeType: 'application/json'
+            },
+          }),
+        }
+      )
+
+      if (res.ok) {
+        data = await res.json()
+        modelUsed = model
+        break
+      } else {
+        const errJson = await res.json().catch(() => ({}))
+        lastError = new Error(errJson?.error?.message || `Status ${res.status}`)
+      }
+    } catch (err) {
+      lastError = err
+    }
   }
 
-  const data = await res.json()
-  const txt  = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  if (!data) {
+    throw lastError || new Error('All Gemini model queries failed.')
+  }
+
+  console.log('[aiSuggest] Selected model:', modelUsed)
+
+  const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+  console.log('[aiSuggest] Raw AI response text:', txt)
   
   // Clean potential markdown wrapper formatting (fallback safety)
   const cleanTxt = txt.replace(/```json\n?|```/g, '').trim()
@@ -140,6 +161,7 @@ Rules:
     try {
       // Fallback: try to repair the truncated JSON string
       const repaired = repairJson(jsonStr)
+      console.log('[aiSuggest] Repaired JSON text:', repaired)
       return JSON.parse(repaired)
     } catch (err) {
       console.error('[aiSuggest] parse and repair failed. Raw response:', txt)

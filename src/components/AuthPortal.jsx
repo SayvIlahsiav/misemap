@@ -14,7 +14,7 @@ const GoogleIcon = () => (
 )
 
 export default function AuthPortal() {
-  const { user, profile, pendingRequest, signIn, signUp, signInWithGoogle, signOut, createOrg, joinOrg, cancelJoinRequest, refreshProfile } = useAuth()
+  const { user, profile, pendingRequest, pendingInvitation, signIn, signUp, signInWithGoogle, signOut, createOrg, joinOrg, cancelJoinRequest, refreshProfile, acceptInvitation, declineInvitation } = useAuth()
   const { theme } = useUI()
   
   // Auth state
@@ -281,6 +281,28 @@ export default function AuthPortal() {
 
       {onboardingMode === 'choose' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {pendingInvitation && (
+            <div style={{
+              background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)',
+              border: '2px solid #0d9488',
+              borderRadius: 14,
+              padding: 16,
+              boxShadow: '0 4px 6px rgba(0,0,0,0.02)',
+              marginBottom: 10
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, color: '#0f766e', marginBottom: 4 }}>
+                <Sparkles size={14} style={{ animation: 'pulseGlow 2s infinite' }} /> You have been invited!
+              </div>
+              <p style={{ fontSize: 12, color: '#374151', margin: '0 0 12px 0', lineHeight: 1.4 }}>
+                You have a pending invitation to join **{pendingInvitation.name}** as a team member.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Btn ch="Accept & Join" onClick={acceptInvitation} v="primary" sz="sm" style={{ flex: 1, justifyContent: 'center' }} />
+                <Btn ch="Decline" onClick={declineInvitation} v="secondary" sz="sm" style={{ flex: 1, justifyContent: 'center' }} />
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => setOnboardingMode('create')}
             style={{

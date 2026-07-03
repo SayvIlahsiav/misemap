@@ -731,7 +731,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData}) => {
+export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite}) => {
   const { renameOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
@@ -976,6 +976,48 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
           </InfoBox>
         </div>
       </Card>
+
+      {profile?.role === 'owner' && (
+        <Card title="Invite Team Members">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              const email = e.target.elements.inviteEmail.value.trim()
+              if (!email) return
+              try {
+                await inviteMember(email)
+                e.target.reset()
+              } catch(err) {
+                // error is already handled by toast in context
+              }
+            }} style={{ display: 'flex', gap: 10 }}>
+              <input
+                type="email"
+                name="inviteEmail"
+                placeholder="colleague@yourkitchen.com"
+                required
+                className="custom-input"
+                style={{ flex: 1, border: '1px solid var(--border-strong)', borderRadius: 8, padding: '8px 10px', fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-card)', outline: 'none', transition: 'all 0.15s ease' }}
+              />
+              <Btn ch="Send Invite" type="submit" v="primary" sz="md" />
+            </form>
+            
+            {invitedEmails.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pending Invitations</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {invitedEmails.map(email => (
+                    <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{email}</span>
+                      <Btn ch="Revoke" onClick={() => revokeInvite(email)} v="secondary" sz="sm" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {profile?.role === 'owner' && (
         <Card title="Workspace Data Controls (Danger Zone)">
