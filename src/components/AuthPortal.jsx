@@ -83,6 +83,30 @@ export default function AuthPortal() {
     }
   }
 
+  const handleAcceptInvite = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await acceptInvitation()
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Failed to accept invitation.')
+      setLoading(false)
+    }
+  }
+
+  const handleDeclineInvite = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await declineInvitation()
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Failed to decline invitation.')
+      setLoading(false)
+    }
+  }
+
   const handleCreateOrg = async (e) => {
     e.preventDefault()
     setError('')
@@ -294,11 +318,16 @@ export default function AuthPortal() {
                 <Sparkles size={14} style={{ animation: 'pulseGlow 2s infinite' }} /> You have been invited!
               </div>
               <p style={{ fontSize: 12, color: '#374151', margin: '0 0 12px 0', lineHeight: 1.4 }}>
-                You have a pending invitation to join **{pendingInvitation.name}** as a team member.
+                You have a pending invitation to join <strong>{pendingInvitation.name}</strong> as a team member.
               </p>
+              {error && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#991b1b', fontSize: 11, marginBottom: 8 }}>
+                  <AlertCircle size={12} /> {error}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
-                <Btn ch="Accept & Join" onClick={acceptInvitation} v="primary" sz="sm" style={{ flex: 1, justifyContent: 'center' }} />
-                <Btn ch="Decline" onClick={declineInvitation} v="secondary" sz="sm" style={{ flex: 1, justifyContent: 'center' }} />
+                <Btn ch={loading ? "Joining..." : "Accept & Join"} onClick={handleAcceptInvite} v="primary" sz="sm" disabled={loading} style={{ flex: 1, justifyContent: 'center' }} />
+                <Btn ch="Decline" onClick={handleDeclineInvite} v="secondary" sz="sm" disabled={loading} style={{ flex: 1, justifyContent: 'center' }} />
               </div>
             </div>
           )}

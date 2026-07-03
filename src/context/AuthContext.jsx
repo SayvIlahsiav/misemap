@@ -475,7 +475,6 @@ export const AuthProvider = ({ children }) => {
 
   const acceptInvitation = async () => {
     if (!user || !pendingInvitation) return
-    setLoading(true)
     try {
       const orgId = pendingInvitation.org_id
       
@@ -504,17 +503,15 @@ export const AuthProvider = ({ children }) => {
       }
       
       setPendingInvitation(null)
-      await refreshProfile()
+      await fetchProfile(user)
     } catch (err) {
       showToast(err.message || 'Failed to accept invitation', 'error')
-    } finally {
-      setLoading(false)
+      throw err
     }
   }
 
   const declineInvitation = async () => {
     if (!user || !pendingInvitation) return
-    setLoading(true)
     try {
       const orgId = pendingInvitation.org_id
       
@@ -536,11 +533,10 @@ export const AuthProvider = ({ children }) => {
       }
       
       setPendingInvitation(null)
-      await refreshProfile()
+      await fetchProfile(user)
     } catch (err) {
       showToast(err.message || 'Failed to decline invitation', 'error')
-    } finally {
-      setLoading(false)
+      throw err
     }
   }
 
@@ -565,7 +561,6 @@ export const AuthProvider = ({ children }) => {
 
   const refreshProfile = async () => {
     if (user) {
-      setLoading(true)
       await fetchProfile(user)
     }
   }
