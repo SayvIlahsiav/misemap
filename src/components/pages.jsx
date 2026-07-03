@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
-  Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp
+  Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCcw
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useUI } from '../context/UIContext.jsx'
 import { supabase } from '../lib/storage.js'
 import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
@@ -15,6 +16,7 @@ import { useIsMobile } from '../hooks/useIsMobile.js'
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
 export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
+  const { confirm, showToast } = useUI()
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
   const alerts    = pricings.filter(m=>m.pct>threshold)
@@ -27,7 +29,53 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   const save = (item) => {
     setMis(mis.map(m => m.id === item.id ? item : m))
     setModal(null)
+    showToast('Menu item updated successfully!', 'success')
   }
+
+  // 1. Dietary Breakdown Donut Calculations
+  const typeCounts = useMemo(() => {
+    const counts = { Vegetarian: 0, 'Non-Vegetarian': 0, Vegan: 0, Jain: 0, Eggetarian: 0 }
+    mis.forEach(m => {
+      if (m.food_type && counts[m.food_type] !== undefined) counts[m.food_type]++
+    })
+    return counts
+  }, [mis])
+
+  const donutData = useMemo(() => {
+    const total = Object.values(typeCounts).reduce((a, b) => a + b, 0)
+    if (total === 0) return []
+    
+    let cumulative = 0
+    const radius = 35
+    const circumference = 2 * Math.PI * radius
+    
+    return Object.entries(typeCounts).map(([type, count]) => {
+      const percentage = (count / total) * 100
+      const dashArray = `${(percentage / 100) * circumference} ${circumference}`
+      const dashOffset = -(cumulative / 100) * circumference
+      cumulative += percentage
+      return {
+        type,
+        count,
+        percentage,
+        dashArray,
+        dashOffset,
+        color: FT_COLOR_MAP[type] || 'gray'
+      }
+    }).filter(d => d.count > 0)
+  }, [typeCounts])
+
+  // 2. Top Expense Ingredients Calculations
+  const topExpenses = useMemo(() => {
+    return [...rms]
+      .map(r => ({ ...r, unitCost: rmUC(r) }))
+      .sort((a, b) => b.unitCost - a.unitCost)
+      .slice(0, 5)
+  }, [rms])
+
+  const maxExpenseCost = useMemo(() => {
+    return Math.max(...topExpenses.map(r => r.unitCost), 1)
+  }, [topExpenses])
 
   const StatCard = ({icon:Icon,label,value,sub,color,onClick}) => {
     const [hover, setHover] = useState(false)
@@ -37,8 +85,8 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
         style={{
-          background:'#fff',
-          border:'1px solid #f1f1f1',
+          background:'var(--bg-card)',
+          border:'1px solid var(--border-color)',
           borderRadius:16,
           padding:18,
           display:'flex',
@@ -46,15 +94,15 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           gap:14,
           cursor:'pointer',
           transform: hover ? 'translateY(-2px)' : 'none',
-          boxShadow: hover ? '0 4px 12px rgba(0,0,0,0.05)' : 'none',
+          boxShadow: hover ? 'var(--shadow-md)' : 'none',
           transition:'all 0.2s ease'
         }}
       >
         <div style={{padding:10,borderRadius:12,background:color.bg}}><Icon size={20} style={{color:color.ico}}/></div>
         <div>
-          <div style={{fontSize:26,fontWeight:800,color:'#111',lineHeight:1}}>{value}</div>
-          <div style={{fontSize:12,fontWeight:600,color:'#374151',marginTop:2}}>{label}</div>
-          <div style={{fontSize:11,color:'#9ca3af'}}>{sub}</div>
+          <div style={{fontSize:26,fontWeight:800,color:'var(--text-primary)',lineHeight:1}}>{value}</div>
+          <div style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginTop:2}}>{label}</div>
+          <div style={{fontSize:11,color:'var(--text-light)'}}>{sub}</div>
         </div>
       </div>
     )
@@ -72,23 +120,23 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
     const deliveryMargin = deliveryNetPayout - (m.food + m.pkg)
 
     return (
-      <div style={{padding: '16px 20px', background: '#fafbfc', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderTop: '1px solid #f3f4f6'}}>
+      <div style={{padding: '16px 20px', background: 'var(--bg-hover)', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, borderTop: '1px solid var(--border-color)'}}>
         <div style={{display:'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent:'space-between', alignItems:'flex-start', gap:20, marginBottom:16}}>
           {/* Ingredients Column */}
           <div style={{flex: 1, minWidth: 260}}>
-            <div style={{fontWeight: 700, fontSize: 11, color: '#374151', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Recipe Cost Breakdown</div>
-            <div style={{borderLeft: '2px solid #e5e7eb', paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 6}}>
+            <div style={{fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Recipe Cost Breakdown</div>
+            <div style={{borderLeft: '2px solid var(--border-strong)', paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 6}}>
               {ingDetails.map((ing, idx) => {
                 const target = ing.type === 'raw' ? rms.find(r=>r.id===ing.id) : ints.find(i=>i.id===ing.id)
                 const name = target?.name || 'Unknown Ingredient'
                 return (
-                  <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'#4b5563'}}>
+                  <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text-secondary)'}}>
                     <span>{name} ({ing.amount}{ing.unit})</span>
-                    <span style={{fontWeight: 600, color: '#111'}}>{fc(ing.cost)}</span>
+                    <span style={{fontWeight: 600, color: 'var(--text-primary)'}}>{fc(ing.cost)}</span>
                   </div>
                 )
               })}
-              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:700, color:'#111', borderTop:'1px solid #f3f4f6', paddingTop:4, marginTop:4}}>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:700, color:'var(--text-primary)', borderTop:'1px solid var(--border-color)', paddingTop:4, marginTop:4}}>
                 <span>Total Food Cost</span>
                 <span>{fc(m.food)}</span>
               </div>
@@ -97,46 +145,46 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
 
           {/* Margins Column */}
           <div style={{flex: 1, minWidth: 260}}>
-            <div style={{fontWeight: 700, fontSize: 11, color: '#374151', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Channel Margins & Payouts</div>
+            <div style={{fontWeight: 700, fontSize: 11, color: 'var(--text-secondary)', textTransform: 'uppercase', tracking: '0.05em', marginBottom: 8}}>Channel Margins & Payouts</div>
             <div style={{display: 'flex', flexDirection: 'column', gap: 6}}>
               {/* Dine-In */}
-              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div style={{background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div>
-                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Dine-In (SP: {fc(m.sp)})</span>
-                  <div style={{fontSize: 9, color: '#9ca3af'}}>Cost: {fc(m.food)}</div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: 'var(--text-primary)'}}>Dine-In (SP: {fc(m.sp)})</span>
+                  <div style={{fontSize: 9, color: 'var(--text-light)'}}>Cost: {fc(m.food)}</div>
                 </div>
                 <div style={{textAlign: 'right'}}>
-                  <div style={{fontWeight: 700, fontSize: 12, color: '#16a34a'}}>Profit: {fc(dineInMargin)}</div>
-                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.pct)}</div>
+                  <div style={{fontWeight: 700, fontSize: 12, color: '#10b981'}}>Profit: {fc(dineInMargin)}</div>
+                  <div style={{fontSize: 9, color: 'var(--text-muted)'}}>FC: {fp(m.pct)}</div>
                 </div>
               </div>
               {/* Takeaway */}
-              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div style={{background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div>
-                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Takeaway (TP: {fc(m.tp)})</span>
-                  <div style={{fontSize: 9, color: '#9ca3af'}}>Cost + Pkg: {fc(m.food + m.pkg)}</div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: 'var(--text-primary)'}}>Takeaway (TP: {fc(m.tp)})</span>
+                  <div style={{fontSize: 9, color: 'var(--text-light)'}}>Cost + Pkg: {fc(m.food + m.pkg)}</div>
                 </div>
                 <div style={{textAlign: 'right'}}>
-                  <div style={{fontWeight: 700, fontSize: 12, color: '#16a34a'}}>Profit: {fc(takeawayMargin)}</div>
-                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.takeaway_fc_pct)}</div>
+                  <div style={{fontWeight: 700, fontSize: 12, color: '#10b981'}}>Profit: {fc(takeawayMargin)}</div>
+                  <div style={{fontSize: 9, color: 'var(--text-muted)'}}>FC: {fp(m.takeaway_fc_pct)}</div>
                 </div>
               </div>
               {/* Delivery */}
-              <div style={{background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div style={{background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                 <div>
-                  <span style={{fontWeight: 700, fontSize: 11, color: '#374151'}}>Delivery (DP: {fc(m.dp)})</span>
-                  <div style={{fontSize: 9, color: '#9ca3af'}}>Net Payout: {fc(deliveryNetPayout)}</div>
+                  <span style={{fontWeight: 700, fontSize: 11, color: 'var(--text-primary)'}}>Delivery (DP: {fc(m.dp)})</span>
+                  <div style={{fontSize: 9, color: 'var(--text-light)'}}>Net Payout: {fc(deliveryNetPayout)}</div>
                 </div>
                 <div style={{textAlign: 'right'}}>
-                  <div style={{fontWeight: 700, fontSize: 12, color: deliveryMargin > 0 ? '#16a34a' : '#dc2626'}}>Profit: {fc(deliveryMargin)}</div>
-                  <div style={{fontSize: 9, color: '#6b7280'}}>FC: {fp(m.delivery_fc_pct)}</div>
+                  <div style={{fontWeight: 700, fontSize: 12, color: deliveryMargin > 0 ? '#10b981' : '#ef4444'}}>Profit: {fc(deliveryMargin)}</div>
+                  <div style={{fontSize: 9, color: 'var(--text-muted)'}}>FC: {fp(m.delivery_fc_pct)}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{display:'flex', justifyContent:'flex-end', borderTop:'1px solid #f3f4f6', paddingTop:10}}>
+        <div style={{display:'flex', justifyContent:'flex-end', borderTop:'1px solid var(--border-color)', paddingTop:10}}>
           <Btn ch={<span style={{display:'flex', alignItems:'center', gap:4}}><Pencil size={11}/> Edit Menu Item</span>} v='secondary' onClick={(e) => { e.stopPropagation(); setModal(m) }}/>
         </div>
       </div>
@@ -146,57 +194,184 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   return (
     <div>
       <div style={{marginBottom:24}}>
-        <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Dashboard</h1>
-        <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>Live overview · shared across your team</p>
+        <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Dashboard</h1>
+        <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Live overview · shared across your team</p>
       </div>
+      
+      {/* Stat Cards */}
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
-        <StatCard icon={Package}        label='Raw Materials' value={rms.length} sub='ingredients tracked'              color={{bg:'#eff6ff',ico:'#2563eb'}} onClick={() => onNavigate('raw')}/>
-        <StatCard icon={FlaskConical}   label='Intermediates' value={ints.length} sub='prep recipes'                   color={{bg:'#ccfbf1',ico:'#0d9488'}} onClick={() => onNavigate('intermediates')}/>
-        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='on your menu'                    color={{bg:'#ccfbf1',ico:'#0d9488'}} onClick={() => onNavigate('menu')}/>
-        <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'#fee2e2',ico:'#dc2626'}:{bg:'#dcfce7',ico:'#16a34a'}} onClick={() => onNavigate('menu')}/>
+        <StatCard icon={Package}        label='Raw Materials' value={rms.length} sub='ingredients tracked'              color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
+        <StatCard icon={FlaskConical}   label='Intermediates' value={ints.length} sub='prep recipes'                   color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('intermediates')}/>
+        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='on your menu'                    color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
+        <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'rgba(239,68,68,0.12)',ico:'#ef4444'}:{bg:'rgba(16,185,129,0.12)',ico:'#10b981'}} onClick={() => onNavigate('menu')}/>
       </div>
 
-      {alerts.length>0&&(
-        <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:14,padding:16,marginBottom:20}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,fontSize:13,color:'#991b1b',marginBottom:12}}>
-            <AlertTriangle size={15}/> {alerts.length} item{alerts.length!==1?'s':''} exceed{alerts.length===1?'s':''} your {threshold}% FC% threshold
-          </div>
-          {alerts.map(m=>{
-            const isExpanded = expandedId === 'alert-' + m.id
-            return (
-              <div key={m.id} style={{background:'#fff',border:'1px solid #fecaca',borderRadius:10,marginBottom:6,overflow:'hidden'}}>
-                <div onClick={() => setExpandedId(isExpanded ? null : 'alert-' + m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
-                  onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    {isExpanded ? <ChevronUp size={14} style={{color:'#dc2626'}}/> : <ChevronDown size={14} style={{color:'#dc2626'}}/>}
-                    <span style={{fontWeight:700,fontSize:13}}>{m.name}</span>
-                    {m.category&&<Bdg ch={m.category} c='gray'/>}
+      {/* Visual Analytics Charts Panel */}
+      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.8fr 1fr', gap:16, marginBottom:24}}>
+        
+        {/* Chart 1: Menu Item Pricing & Margin Comparison */}
+        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20}}>
+          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Menu Costs vs. Selling Price</div>
+          {pricings.length === 0 ? (
+            <div style={{height: 200, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add menu items to see comparison</div>
+          ) : (
+            <div style={{maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6}}>
+              {pricings.map(m => {
+                const maxVal = Math.max(...pricings.map(x => x.sp), 1)
+                const costPercent = (m.food / maxVal) * 100
+                const pricePercent = (m.sp / maxVal) * 100
+                return (
+                  <div key={m.id} style={{display:'flex', alignItems:'center', gap: 12}}>
+                    <div style={{width: 110, fontSize: 11, fontWeight: 600, textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', color:'var(--text-secondary)'}}>{m.name}</div>
+                    <div style={{flex: 1, display:'flex', flexDirection:'column', gap: 3}}>
+                      {/* Cost Bar */}
+                      <div style={{display:'flex', alignItems:'center', gap: 6}}>
+                        <div style={{width: `${costPercent}%`, height: 6, background: '#ef4444', borderRadius: 3}}/>
+                        <span style={{fontSize: 9, color: 'var(--text-light)'}}>{fc(m.food)}</span>
+                      </div>
+                      {/* Selling Price Bar */}
+                      <div style={{display:'flex', alignItems:'center', gap: 6}}>
+                        <div style={{width: `${pricePercent}%`, height: 6, background: 'var(--primary)', borderRadius: 3}}/>
+                        <span style={{fontSize: 9, color: 'var(--text-light)'}}>{fc(m.sp)}</span>
+                      </div>
+                    </div>
+                    <div style={{width: 50, textAlign:'right'}}>
+                      <FCBadge pct={m.pct} threshold={threshold}/>
+                    </div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,fontSize:12}}>
-                    <span style={{color:'#6b7280'}}>FC: <strong style={{color:'#111'}}>{fc(m.food)}</strong></span>
-                    <span style={{color:'#6b7280'}}>SP: <strong style={{color:'#111'}}>{fc(m.sp)}</strong></span>
-                    <FCBadge pct={m.pct} threshold={threshold}/>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Chart 2: Dietary Distribution Donut Chart */}
+        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+          <div style={{alignSelf:'flex-start', fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:10}}>Dietary Distribution</div>
+          {mis.length === 0 ? (
+            <div style={{height: 160, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>No data available</div>
+          ) : (
+            <div style={{display:'flex', alignItems:'center', gap: 14, width:'100%', justifyContent:'space-around'}}>
+              <svg width="100" height="100" viewBox="0 0 100 100" style={{flexShrink: 0}}>
+                {donutData.map((d) => (
+                  <circle
+                    key={d.type}
+                    cx="50"
+                    cy="50"
+                    r="35"
+                    fill="none"
+                    stroke={
+                      d.color === 'green' ? '#10b981' :
+                      d.color === 'red' ? '#ef4444' :
+                      d.color === 'teal' ? '#14b8a6' :
+                      d.color === 'orange' ? '#f97316' :
+                      d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                    }
+                    strokeWidth="11"
+                    strokeDasharray={d.dashArray}
+                    strokeDashoffset={d.dashOffset}
+                    transform="rotate(-90 50 50)"
+                    style={{transition: 'stroke-dashoffset 0.5s ease'}}
+                  />
+                ))}
+                <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 12, fontWeight: 800, fill: 'var(--text-primary)'}}>
+                  {mis.length}
+                </text>
+                <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 6, fontWeight: 700, fill: 'var(--text-light)', textTransform: 'uppercase'}}>
+                  Items
+                </text>
+              </svg>
+
+              <div style={{display:'flex', flexDirection:'column', gap: 6}}>
+                {donutData.map(d => (
+                  <div key={d.type} style={{display:'flex', alignItems:'center', gap: 6, fontSize:10}}>
+                    <div style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: d.color === 'green' ? '#10b981' :
+                                  d.color === 'red' ? '#ef4444' :
+                                  d.color === 'teal' ? '#14b8a6' :
+                                  d.color === 'orange' ? '#f97316' :
+                                  d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                    }}/>
+                    <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{d.type}</span>
+                    <span style={{color:'var(--text-light)'}}>({d.count})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 2fr', gap:16, marginBottom:24}}>
+        
+        {/* Chart 3: Top Expense Ingredients */}
+        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20}}>
+          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Top Expense Ingredients</div>
+          {rms.length === 0 ? (
+            <div style={{height: 150, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add raw materials to see analytics</div>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column', gap: 12}}>
+              {topExpenses.map(rm => (
+                <div key={rm.id}>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize: 11, marginBottom: 4}}>
+                    <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{rm.name}</span>
+                    <span style={{fontWeight:700, color:'var(--primary)'}}>{fc(rm.unitCost)}/{rm.usage_unit}</span>
+                  </div>
+                  <div style={{width:'100%', height: 6, background:'var(--border-color)', borderRadius: 3, overflow:'hidden'}}>
+                    <div style={{width: `${(rm.unitCost / maxExpenseCost) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), #06b6d4)', borderRadius: 3, transition:'width 0.5s ease-in-out'}}/>
                   </div>
                 </div>
-                {isExpanded && <DetailPanel m={m} />}
-              </div>
-            )
-          })}
+              ))}
+            </div>
+          )}
         </div>
-      )}
 
-      <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:12}}>All Menu Items — Pricing Overview</div>
+        {/* FC Alerts Dashboard Section */}
+        {alerts.length>0 && (
+          <div style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,fontSize:13,color:'#ef4444',marginBottom:12}}>
+              <AlertTriangle size={15}/> {alerts.length} item{alerts.length!==1?'s':''} exceed{alerts.length===1?'s':''} your {threshold}% FC% threshold
+            </div>
+            <div style={{maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection:'column', gap: 6, paddingRight: 4}}>
+              {alerts.map(m=>{
+                const isExpanded = expandedId === 'alert-' + m.id
+                return (
+                  <div key={m.id} style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:10,overflow:'hidden'}}>
+                    <div onClick={() => setExpandedId(isExpanded ? null : 'alert-' + m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
+                      onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        {isExpanded ? <ChevronUp size={14} style={{color:'#ef4444'}}/> : <ChevronDown size={14} style={{color:'#ef4444'}}/>}
+                        <span style={{fontWeight:700,fontSize:13,color:'var(--text-primary)'}}>{m.name}</span>
+                        {m.category&&<Bdg ch={m.category} c='gray'/>}
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,fontSize:12}}>
+                        <span style={{color:'var(--text-muted)'}}>FC: <strong style={{color:'var(--text-secondary)'}}>{fc(m.food)}</strong></span>
+                        <span style={{color:'var(--text-muted)'}}>SP: <strong style={{color:'var(--text-secondary)'}}>{fc(m.sp)}</strong></span>
+                        <FCBadge pct={m.pct} threshold={threshold}/>
+                      </div>
+                    </div>
+                    {isExpanded && <DetailPanel m={m} />}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{fontWeight:700,fontSize:13,color:'var(--text-secondary)',marginBottom:12}}>All Menu Items — Pricing Overview</div>
       {pricings.length===0?(
-        <div style={{textAlign:'center',padding:'64px 0',color:'#d1d5db',border:'2px dashed #f1f1f1',borderRadius:16,fontSize:14}}>
+        <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
           Add raw materials, build recipes, and your full cost analysis appears here.
         </div>
       ):(
-        <div style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:16,overflowX:'auto'}}>
+        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 700}}>
             <thead>
-              <tr style={{background:'#f9fafb'}}>
+              <tr style={{background:'var(--bg-hover)'}}>
                 {['Item','Category','Food Type','Food Cost','Dine-In','Takeaway','Delivery','Dine-In FC%'].map(h=>(
-                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11}}>{h}</th>
+                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'var(--text-light)',fontSize:11}}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -205,24 +380,24 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
                 const isExpanded = expandedId === 'table-' + m.id
                 return (
                   <React.Fragment key={m.id}>
-                    <tr onClick={() => setExpandedId(isExpanded ? null : 'table-' + m.id)} style={{borderTop:'1px solid #f9fafb', cursor:'pointer'}}
-                      onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'#111'}}>
+                    <tr onClick={() => setExpandedId(isExpanded ? null : 'table-' + m.id)} style={{borderTop:'1px solid var(--border-color)', cursor:'pointer'}}
+                      onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-primary)'}}>
                         <div style={{display:'flex', alignItems:'center', gap:6}}>
-                          {isExpanded ? <ChevronUp size={14} style={{color:'#9ca3af'}}/> : <ChevronDown size={14} style={{color:'#9ca3af'}}/>}
+                          {isExpanded ? <ChevronUp size={14} style={{color:'var(--text-light)'}}/> : <ChevronDown size={14} style={{color:'var(--text-light)'}}/>}
                           {m.name}
                         </div>
                       </td>
-                      <td style={{padding:'10px 14px',color:'#6b7280'}}>{m.category||'—'}</td>
+                      <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{m.category||'—'}</td>
                       <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                      <td style={{padding:'10px 14px',fontWeight:600}}>{fc(m.food)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700}}>{fc(m.sp)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'#374151'}}>{fc(m.tp)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'#0f766e'}}>{fc(m.dp)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.food)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-primary)'}}>{fc(m.sp)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
+                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--primary)'}}>{fc(m.dp)}</td>
                       <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                     </tr>
                     {isExpanded && (
-                      <tr key={`${m.id}-detail`} style={{background:'#fafbfc'}}>
+                      <tr key={`${m.id}-detail`} style={{background:'var(--bg-hover)'}}>
                         <td colSpan={8} style={{padding:0}}>
                           <DetailPanel m={m} />
                         </td>
@@ -254,20 +429,35 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
 // RAW MATERIALS PAGE
 // ─────────────────────────────────────────────────────────
 export const RMPage = ({rms, setRms}) => {
+  const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
   const filtered = rms.filter(r=>(r?.name || '').toLowerCase().includes(q.toLowerCase())||(r?.category||'').toLowerCase().includes(q.toLowerCase()))
-  const save = rm => { setRms(rms.find(r=>r.id===rm.id)?rms.map(r=>r.id===rm.id?rm:r):[...rms,rm]); setModal(null) }
-  const saveBulk = items => { setRms(items); setModal(null) }
-  const del  = id => { if(confirm('Delete this raw material? It may break recipes that use it.')) setRms(rms.filter(r=>r.id!==id)) }
+  
+  const save = rm => { 
+    setRms(rms.find(r=>r.id===rm.id)?rms.map(r=>r.id===rm.id?rm:r):[...rms,rm]); 
+    setModal(null);
+    showToast(rms.find(r=>r.id===rm.id)?'Raw material updated!':'Raw material added!', 'success')
+  }
+  const saveBulk = items => { 
+    setRms(items); 
+    setModal(null);
+    showToast('Batch imports complete!', 'success')
+  }
+  const del  = async id => { 
+    if(await confirm('Delete this raw material?', 'It may break recipes that use it.')) {
+      setRms(rms.filter(r=>r.id!==id)) 
+      showToast('Raw material deleted successfully.', 'success')
+    }
+  }
 
   return (
     <div>
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:20,gap: 12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Raw Materials</h1>
-          <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{rms.length} ingredients · the foundation of all recipes</p>
+          <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Raw Materials</h1>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{rms.length} ingredients · the foundation of all recipes</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
           <Btn ch={<><Plus size={14}/>Add Raw Material</>} v='primary' onClick={()=>setModal('new')}/>
@@ -275,49 +465,50 @@ export const RMPage = ({rms, setRms}) => {
         </div>
       </div>
       <div style={{position:'relative',marginBottom:16}}>
-        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'#d1d5db'}}/>
+        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search by name or category…'
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid #e5e7eb',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none'}}/>
+          className="custom-input"
+          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
       </div>
       {filtered.length===0?(
-        <div style={{textAlign:'center',padding:'64px 0',color:'#d1d5db',border:'2px dashed #f1f1f1',borderRadius:16,fontSize:14}}>
+        <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
           {rms.length===0?'No raw materials yet — add your first ingredient!':'No results found.'}
         </div>
       ):(
-        <div style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:16,overflowX:'auto'}}>
+        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
-              <tr style={{background:'#f9fafb'}}>
+              <tr style={{background:'var(--bg-hover)'}}>
                 {['Name & Category','Type','Buy Unit','Pack Cost','Qty / Pack','Usage Unit','Unit Cost',''].map(h=>(
-                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
+                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'var(--text-light)',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map(rm=>(
-                <tr key={rm.id} style={{borderTop:'1px solid #f9fafb'}}
-                  onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                <tr key={rm.id} style={{borderTop:'1px solid var(--border-color)'}}
+                  onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                   <td style={{padding:'10px 14px'}}>
-                    <div style={{fontWeight:700,color:'#111'}}>{rm.name}</div>
-                    <div style={{fontSize:11,color:'#9ca3af'}}>{[rm.category,rm.sub_category].filter(Boolean).join(' · ')}</div>
+                    <div style={{fontWeight:700,color:'var(--text-primary)'}}>{rm.name}</div>
+                    <div style={{fontSize:11,color:'var(--text-light)'}}>{[rm.category,rm.sub_category].filter(Boolean).join(' · ')}</div>
                   </td>
                   <td style={{padding:'10px 14px'}}><Bdg ch={rm.food_type||'—'} c={FT_COLOR_MAP[rm.food_type]||'gray'}/></td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{rm.buy_unit}</td>
-                  <td style={{padding:'10px 14px'}}>{fc(rm.pack_cost)}</td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{rm.pack_qty}</td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{rm.usage_unit}</td>
+                  <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{rm.buy_unit}</td>
+                  <td style={{padding:'10px 14px',color:'var(--text-secondary)'}}>{fc(rm.pack_cost)}</td>
+                  <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{rm.pack_qty}</td>
+                  <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{rm.usage_unit}</td>
                   <td style={{padding:'10px 14px'}}>
-                    <span style={{fontWeight:700,color:'#0f766e'}}>{fc(rmUC(rm))}</span>
-                    <span style={{fontSize:11,color:'#9ca3af'}}>/{rm.usage_unit}</span>
+                    <span style={{fontWeight:700,color:'var(--primary)'}}>{fc(rmUC(rm))}</span>
+                    <span style={{fontSize:11,color:'var(--text-light)'}}>/{rm.usage_unit}</span>
                   </td>
                   <td style={{padding:'10px 14px'}}>
                     <div style={{display:'flex',gap:4}}>
-                      <button onClick={()=>setModal(rm)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'#9ca3af',borderRadius:6,display:'flex'}}
-                        onMouseOver={e=>e.currentTarget.style.background='#f3f4f6'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                      <button onClick={()=>setModal(rm)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.1s'}}
+                        onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
                         <Pencil size={12}/>
                       </button>
-                      <button onClick={()=>del(rm.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'#9ca3af',borderRadius:6,display:'flex'}}
-                        onMouseOver={e=>e.currentTarget.style.background='#fee2e2'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                      <button onClick={()=>del(rm.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.1s'}}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
                         <Trash2 size={12}/>
                       </button>
                     </div>
@@ -338,20 +529,35 @@ export const RMPage = ({rms, setRms}) => {
 // INTERMEDIATES PAGE
 // ─────────────────────────────────────────────────────────
 export const IntPage = ({ints, setInts, rms}) => {
+  const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
   const filtered = ints.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())||(i?.category||'').toLowerCase().includes(q.toLowerCase()))
-  const save = it => { setInts(ints.find(i=>i.id===it.id)?ints.map(i=>i.id===it.id?it:i):[...ints,it]); setModal(null) }
-  const saveBulk = items => { setInts(items); setModal(null) }
-  const del  = id => { if(confirm('Delete this intermediate? It may break menu items that use it.')) setInts(ints.filter(i=>i.id!==id)) }
+  
+  const save = it => { 
+    setInts(ints.find(i=>i.id===it.id)?ints.map(i=>i.id===it.id?it:i):[...ints,it]); 
+    setModal(null);
+    showToast(ints.find(i=>i.id===it.id)?'Intermediate updated!':'Intermediate added!', 'success')
+  }
+  const saveBulk = items => { 
+    setInts(items); 
+    setModal(null);
+    showToast('Batch imports complete!', 'success')
+  }
+  const del  = async id => { 
+    if(await confirm('Delete this intermediate?', 'It may break menu items that use it.')) {
+      setInts(ints.filter(i=>i.id!==id)) 
+      showToast('Intermediate deleted successfully.', 'success')
+    }
+  }
 
   return (
     <div>
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:20,gap: 12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Intermediates</h1>
-          <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{ints.length} prep recipes · sauces, marinades, bases</p>
+          <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Intermediates</h1>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{ints.length} prep recipes · sauces, marinades, bases</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
           <Btn ch={<><Plus size={14}/>Add Intermediate</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
@@ -360,12 +566,13 @@ export const IntPage = ({ints, setInts, rms}) => {
       </div>
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating intermediates.</InfoBox></div>}
       <div style={{position:'relative',marginBottom:16}}>
-        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'#d1d5db'}}/>
+        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search intermediates…'
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid #e5e7eb',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none'}}/>
+          className="custom-input"
+          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
       </div>
       {filtered.length===0?(
-        <div style={{textAlign:'center',padding:'64px 0',color:'#d1d5db',border:'2px dashed #f1f1f1',borderRadius:16,fontSize:14}}>
+        <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
           {ints.length===0?'No intermediates yet.':'No results found.'}
         </div>
       ):(
@@ -373,18 +580,20 @@ export const IntPage = ({ints, setInts, rms}) => {
           {filtered.map(it=>{
             const tc=it.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0), uc=intUC(it,rms,ints)
             return (
-              <div key={it.id} style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:14,padding:'14px 18px'}}>
+              <div key={it.id} style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:14,padding:'14px 18px',boxShadow:'var(--shadow-sm)'}}>
                 <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'flex-start',justifyContent:'space-between',gap: 12}}>
                   <div>
-                    <div style={{fontWeight:700,fontSize:14,color:'#111'}}>{it.name}</div>
-                    <div style={{fontSize:12,color:'#9ca3af',marginTop:2}}>{it.category||'No category'} · {it.ingredients.length} ingredient{it.ingredients.length!==1?'s':''}</div>
+                    <div style={{fontWeight:700,fontSize:14,color:'var(--text-primary)'}}>{it.name}</div>
+                    <div style={{fontSize:12,color:'var(--text-light)',marginTop:2}}>{it.category||'No category'} · {it.ingredients.length} ingredient{it.ingredients.length!==1?'s':''}</div>
                   </div>
                   <div style={{display:'flex',gap:14,alignItems:'center',justifyContent: isMobile ? 'space-between' : 'flex-end',marginTop: isMobile ? 8 : 0}}>
-                    <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'#9ca3af'}}>Total cost</div><div style={{fontWeight:700,fontSize:14,color:'#374151'}}>{fc(tc)}</div></div>
-                    <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'#9ca3af'}}>Per {it.yield_unit}</div><div style={{fontWeight:700,fontSize:14,color:'#0f766e'}}>{fc(uc)}</div></div>
+                    <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'var(--text-light)'}}>Total cost</div><div style={{fontWeight:700,fontSize:14,color:'var(--text-secondary)'}}>{fc(tc)}</div></div>
+                    <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'var(--text-light)'}}>Per {it.yield_unit}</div><div style={{fontWeight:700,fontSize:14,color:'var(--primary)'}}>{fc(uc)}</div></div>
                     <div style={{display:'flex',gap:4}}>
-                      <button onClick={()=>setModal(it)} style={{padding:6,border:'none',background:'#f9fafb',cursor:'pointer',color:'#6b7280',borderRadius:6,display:'flex'}}><Pencil size={12}/></button>
-                      <button onClick={()=>del(it.id)}   style={{padding:6,border:'none',background:'#f9fafb',cursor:'pointer',color:'#6b7280',borderRadius:6,display:'flex'}}><Trash2 size={12}/></button>
+                      <button onClick={()=>setModal(it)} style={{padding:6,border:'none',background:'var(--bg-hover)',cursor:'pointer',color:'var(--text-muted)',borderRadius:6,display:'flex',transition:'color 0.1s'}}
+                        onMouseOver={e=>e.currentTarget.style.color='var(--text-primary)'}><Pencil size={12}/></button>
+                      <button onClick={()=>del(it.id)}   style={{padding:6,border:'none',background:'var(--bg-hover)',cursor:'pointer',color:'var(--text-muted)',borderRadius:6,display:'flex',transition:'color 0.1s'}}
+                        onMouseOver={e=>e.currentTarget.style.color='#ef4444'}><Trash2 size={12}/></button>
                     </div>
                   </div>
                 </div>
@@ -410,6 +619,7 @@ export const IntPage = ({ints, setInts, rms}) => {
 // MENU ITEMS PAGE
 // ─────────────────────────────────────────────────────────
 export const MIPage = ({mis, setMis, rms, ints, pc}) => {
+  const { confirm, showToast } = useUI()
   const [modal, setModal]   = useState(null)
   const [q, setQ]           = useState('')
   const [filterCat, setFCat]= useState('')
@@ -421,16 +631,30 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
     ((m?.name || '').toLowerCase().includes(q.toLowerCase())||(m?.category||'').toLowerCase().includes(q.toLowerCase()))
     &&(!filterCat||m.category===filterCat)
   )
-  const save = mi => { setMis(mis.find(m=>m.id===mi.id)?mis.map(m=>m.id===mi.id?mi:m):[...mis,mi]); setModal(null) }
-  const saveBulk = items => { setMis(items); setModal(null) }
-  const del  = id => { if(confirm('Delete this menu item?')) setMis(mis.filter(m=>m.id!==id)) }
+  
+  const save = mi => { 
+    setMis(mis.find(m=>m.id===mi.id)?mis.map(m=>m.id===mi.id?mi:m):[...mis,mi]); 
+    setModal(null);
+    showToast(mis.find(m=>m.id===mi.id)?'Menu item updated!':'Menu item added!', 'success')
+  }
+  const saveBulk = items => { 
+    setMis(items); 
+    setModal(null);
+    showToast('Batch imports complete!', 'success')
+  }
+  const del  = async id => { 
+    if(await confirm('Delete this menu item?', 'This action cannot be undone.')) {
+      setMis(mis.filter(m=>m.id!==id)) 
+      showToast('Menu item deleted successfully.', 'success')
+    }
+  }
 
   return (
     <div>
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:20,gap: 12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Menu Items</h1>
-          <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>{mis.length} items · full recipe costing and pricing</p>
+          <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Menu Items</h1>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{mis.length} items · full recipe costing and pricing</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
           <Btn ch={<><Plus size={14}/>Add Menu Item</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
@@ -440,57 +664,59 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating menu items.</InfoBox></div>}
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',gap:10,marginBottom:16}}>
         <div style={{position:'relative',flex:1}}>
-          <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'#d1d5db'}}/>
+          <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search menu items…'
-            style={{width:'100%',boxSizing:'border-box',border:'1px solid #e5e7eb',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none'}}/>
+            className="custom-input"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
         </div>
         {cats.length>0&&(
           <select value={filterCat} onChange={e=>setFCat(e.target.value)}
-            style={{border:'1px solid #e5e7eb',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'#374151':'#9ca3af',outline:'none',background:'#fff',minWidth: 160}}>
+            className="custom-input"
+            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 160,cursor:'pointer',transition:'all 0.15s ease'}}>
             <option value=''>All categories</option>
             {cats.map(c=><option key={c} value={c}>{c}</option>)}
           </select>
         )}
       </div>
       {filtered.length===0?(
-        <div style={{textAlign:'center',padding:'64px 0',color:'#d1d5db',border:'2px dashed #f1f1f1',borderRadius:16,fontSize:14}}>
+        <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
           {mis.length===0?'No menu items yet.':'No results found.'}
         </div>
       ):(
-        <div style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:16,overflowX:'auto'}}>
+        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
-              <tr style={{background:'#f9fafb'}}>
+              <tr style={{background:'var(--bg-hover)'}}>
                 {['Item','Category','Type','Food Cost','Dine-In Price','Takeaway Price','Delivery Price','Dine-In FC%','Takeaway FC%','Delivery FC%',''].map(h=>(
-                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'#9ca3af',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
+                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'var(--text-light)',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.map(m=>(
-                <tr key={m.id} style={{borderTop:'1px solid #f9fafb'}}
-                  onMouseOver={e=>e.currentTarget.style.background='#fafafa'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                <tr key={m.id} style={{borderTop:'1px solid var(--border-color)'}}
+                  onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                   <td style={{padding:'10px 14px'}}>
-                    <div style={{fontWeight:700,color:'#111'}}>{m.name}</div>
-                    {m.sub_category&&<div style={{fontSize:11,color:'#9ca3af'}}>{m.sub_category}</div>}
+                    <div style={{fontWeight:700,color:'var(--text-primary)'}}>{m.name}</div>
+                    {m.sub_category&&<div style={{fontSize:11,color:'var(--text-light)'}}>{m.sub_category}</div>}
                   </td>
-                  <td style={{padding:'10px 14px',color:'#6b7280'}}>{m.category||'—'}</td>
+                  <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{m.category||'—'}</td>
                   <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                  <td style={{padding:'10px 14px',fontWeight:600}}>{fc(m.food)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'#111'}}>{fc(m.sp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:700,color:'#374151'}}>{fc(m.tp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'#0f766e'}}>{fc(m.dp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.food)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--text-primary)'}}>{fc(m.sp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--primary)'}}>{fc(m.dp)}</td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.takeaway_fc_pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.delivery_fc_pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}>
                     <div style={{display:'flex',gap:4}}>
-                      <button onClick={()=>setModal(mis.find(x=>x.id===m.id))} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'#9ca3af',borderRadius:6,display:'flex'}}
-                        onMouseOver={e=>e.currentTarget.style.background='#f3f4f6'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                      <button onClick={()=>setModal(mis.find(x=>x.id===m.id))} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.15s ease'}}
+                        onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
                         <Pencil size={12}/>
                       </button>
-                      <button onClick={()=>del(m.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'#9ca3af',borderRadius:6,display:'flex'}}
-                        onMouseOver={e=>e.currentTarget.style.background='#fee2e2'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                      <button onClick={()=>del(m.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.15s ease'}}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
                         <Trash2 size={12}/>
                       </button>
                     </div>
@@ -512,6 +738,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
   const { renameOrg, refreshProfile } = useAuth()
+  const { showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
@@ -551,9 +778,9 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
   const handleRenameOrg = async () => {
     try {
       await renameOrg(orgName)
-      alert('Organization renamed successfully!')
+      showToast('Organization renamed successfully!', 'success')
     } catch (e) {
-      alert(e.message || 'Failed to rename organization')
+      showToast(e.message || 'Failed to rename organization', 'error')
     }
   }
 
@@ -567,11 +794,11 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
   const handleSaveUsername = async () => {
     const trimmed = username.trim().toLowerCase()
     if (trimmed !== '' && (trimmed.length < 3 || trimmed.length > 20)) {
-      alert('Username must be between 3 and 20 characters.')
+      showToast('Username must be between 3 and 20 characters.', 'warning')
       return
     }
     if (trimmed !== '' && !/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-      alert('Username can only contain letters, numbers, and underscores.')
+      showToast('Username can only contain letters, numbers, and underscores.', 'warning')
       return
     }
     
@@ -585,7 +812,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
           .maybeSingle()
         if (error) throw error
         if (data && data.id !== profile.id) {
-          alert('Username is already taken. Please choose another.')
+          showToast('Username is already taken. Please choose another.', 'warning')
           setSavingUsername(false)
           return
         }
@@ -597,10 +824,10 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
         .eq('id', profile.id)
       if (error) throw error
       
-      alert('Username updated successfully!')
+      showToast('Username updated successfully!', 'success')
       await refreshProfile()
     } catch (err) {
-      alert(err.message || 'Failed to update username.')
+      showToast(err.message || 'Failed to update username.', 'error')
     } finally {
       setSavingUsername(false)
     }
@@ -614,18 +841,18 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
           .update({ status: 'approved' })
           .eq('id', requestId)
         if (error) throw error
-        alert('Request approved! The member is now linked to your organization.')
+        showToast('Request approved! The member is now linked to your organization.', 'success')
       } else {
         const { error } = await supabase
           .from('org_join_requests')
           .delete()
           .eq('id', requestId)
         if (error) throw error
-        alert('Request rejected.')
+        showToast('Request rejected.', 'warning')
       }
       loadRequests()
     } catch (e) {
-      alert(e.message || 'Failed to handle request action.')
+      showToast(e.message || 'Failed to handle request action.', 'error')
     }
   }
 
@@ -670,12 +897,13 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
     setDraft(JSON.parse(JSON.stringify(nd)))
     setCascade(null)
     setFlash(true)
+    showToast('All settings saved successfully!', 'success')
     setTimeout(()=>setFlash(false),2200)
   }
 
   const Card = ({title,children}) => (
-    <div style={{background:'#fff',border:'1px solid #f1f1f1',borderRadius:16,overflow:'hidden',marginBottom:20}}>
-      <div style={{padding:'14px 20px',borderBottom:'1px solid #f9fafb',fontSize:13,fontWeight:700,color:'#374151'}}>{title}</div>
+    <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflow:'hidden',marginBottom:20,boxShadow:'var(--shadow-sm)'}}>
+      <div style={{padding:'14px 20px',borderBottom:'1px solid var(--border-color)',fontSize:13,fontWeight:700,color:'var(--text-secondary)'}}>{title}</div>
       <div style={{padding:'16px 20px'}}>{children}</div>
     </div>
   )
@@ -684,8 +912,8 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
     <div>
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:24,gap: 12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#111',margin:0}}>Settings</h1>
-          <p style={{fontSize:13,color:'#9ca3af',marginTop:4}}>Global defaults → category overrides → per-item rules</p>
+          <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Settings</h1>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Global defaults → category overrides → per-item rules</p>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,justifyContent: isMobile ? 'space-between' : 'flex-end'}}>
           {flash&&<span style={{fontSize:12,color:'#166534',background:'#dcfce7',padding:'4px 12px',borderRadius:8,fontWeight:600}}>Saved!</span>}
@@ -700,7 +928,8 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
               <Label>Organization Name</Label>
               <div style={{display:'flex', gap:8, marginTop: 4}}>
                 <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
-                  style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#1a1a1a', background:profile?.role !== 'owner' ? '#f9fafb' : '#fff', outline:'none'}}/>
+                  className="custom-input"
+                  style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
                 {profile?.role === 'owner' && (
                   <Btn ch='Save' onClick={handleRenameOrg} v="secondary" sz="md" disabled={!orgName.trim() || orgName === org?.name}/>
                 )}
@@ -710,22 +939,24 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
               <Label>Organization ID (Share to invite members)</Label>
               <div style={{display:'flex', gap:8, marginTop: 4}}>
                 <input type='text' value={org?.id || ''} readOnly
-                  style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#6b7280', background:'#f9fafb', outline:'none', fontFamily:'monospace'}}/>
+                  className="custom-input"
+                  style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-muted)', background:'var(--bg-hover)', outline:'none', fontFamily:'monospace',transition:'all 0.15s ease'}}/>
                 <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
               </div>
             </div>
           </div>
-          <div style={{borderTop:'1px solid #f1f1f1', paddingTop:16, marginTop: 8}}>
+          <div style={{borderTop:'1px solid var(--border-color)', paddingTop:16, marginTop: 8}}>
             <Label>Your Profile Username (Optional)</Label>
             <div style={{display:'flex', gap:8, marginTop: 4, maxWidth: isMobile ? '100%' : '50%'}}>
               <input type='text' value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. chef_pastry"
-                style={{flex:1, border:'1px solid #e5e7eb', borderRadius:8, padding:'8px 10px', fontSize:13, color:'#1a1a1a', outline:'none'}}/>
+                className="custom-input"
+                style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
               <Btn ch={savingUsername ? 'Saving...' : 'Save'} onClick={handleSaveUsername} v="secondary" sz="md" disabled={savingUsername || username === (profile?.username || '')}/>
             </div>
-            <p style={{fontSize:11, color:'#9ca3af', marginTop:6}}>A unique custom username (alphanumeric & underscores, 3-20 characters) shown in the workspace sidebar.</p>
+            <p style={{fontSize:11, color:'var(--text-light)', marginTop:6}}>A unique custom username (alphanumeric & underscores, 3-20 characters) shown in the workspace sidebar.</p>
           </div>
           <InfoBox color='gray'>
-            Your role: <span style={{fontWeight:700, color:'#0d9488'}}>{profile?.role?.toUpperCase()}</span>. 
+            Your role: <span style={{fontWeight:700, color:'var(--primary)'}}>{profile?.role?.toUpperCase()}</span>. 
             {profile?.role === 'owner' 
               ? ' You can rename the organization. Other team members can join this workspace using the Organization ID above.' 
               : ' Only the owner can rename the organization. Contact your administrator to make changes.'}
@@ -737,27 +968,27 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
       {profile?.role === 'owner' && (
         <Card title="Pending Membership Requests">
           {requestsLoading ? (
-            <p style={{ fontSize: 13, color: '#6b7280' }}>Loading requests...</p>
+            <p style={{ fontSize: 13, color: 'var(--text-light)' }}>Loading requests...</p>
           ) : requests.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#6b7280' }}>No pending membership requests.</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No pending membership requests.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {requests.map(req => (
                 <div key={req.id} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', background: '#f9fafb', borderRadius: 12, border: '1px solid #f1f1f1'
+                  padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 12, border: '1px solid var(--border-color)'
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
                       {req.profiles?.email || 'Unknown User'}
                     </span>
-                    <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-light)', fontFamily: 'monospace' }}>
                       ID: {req.user_id}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <Btn ch="Approve" onClick={() => handleRequestAction(req.id, 'approved')} v="primary" sz="sm" />
-                    <Btn ch="Reject" onClick={() => handleRequestAction(req.id, 'rejected')} v="danger" sz="sm" />
+                    <Btn ch="Reject" onClick={() => handleRequestAction(req.id, 'danger')} v="danger" sz="sm" />
                   </div>
                 </div>
               ))}
@@ -782,68 +1013,94 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
 
       <Card title='Category Overrides (leave blank to inherit global)'>
         {cats.length===0?(
-          <p style={{fontSize:13,color:'#9ca3af'}}>No categories yet — add menu items with categories to create overrides.</p>
+          <p style={{fontSize:13,color:'var(--text-light)'}}>No categories yet — add menu items with categories to create overrides.</p>
         ):(
           <div style={{overflowX: 'auto'}}>
             <div style={{minWidth: 600}}>
-              <div style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid #f1f1f1',marginBottom:4}}>
-                <span style={{fontSize:11,fontWeight:700,color:'#9ca3af'}}>CATEGORY</span>
-                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'#9ca3af'}}>{f.l.toUpperCase()} ({f.u})</span>)}
+              <div style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
+                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
               </div>
               {cats.map(cat=>(
-                <div key={cat} style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid #f9fafb',alignItems:'center'}}>
-                  <span style={{fontSize:13,fontWeight:600,color:'#374151'}}>{cat}</span>
+                <div key={cat} style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{cat}</span>
                   {FIELDS.map(f=>{
                     const ov=draft.category_overrides[cat]?.[f.k]
                     return (
                       <div key={f.k} style={{position:'relative'}}>
                         <input type='number' min='0' step={f.step} placeholder={String(draft.global[f.k])} value={ov!=null?ov:''}
                           onChange={e=>updCat(cat,f.k,e.target.value===''?null:e.target.value)}
-                          style={{width:'100%',boxSizing:'border-box',border:`1px solid ${ov!=null?'#2dd4bf':'#e5e7eb'}`,borderRadius:6,padding:'5px 28px 5px 8px',fontSize:12,outline:'none',background:ov!=null?'#f0fdfa':'#fff'}}/>
-                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'#9ca3af'}}>{f.u}</span>
+                          className="custom-input"
+                          style={{width:'100%',boxSizing:'border-box',border:`1px solid ${ov!=null?'#2dd4bf':'var(--border-strong)'}`,borderRadius:6,padding:'5px 28px 5px 8px',fontSize:12,outline:'none',background:ov!=null?'var(--bg-active-tab)':'var(--bg-card)',color:'var(--text-primary)',transition:'all 0.15s ease'}}/>
+                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
                       </div>
                     )
                   })}
                 </div>
               ))}
             </div>
-            <p style={{fontSize:11,color:'#9ca3af',marginTop:8}}>Highlighted fields are active overrides. Blank = uses global default.</p>
+            <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Highlighted fields are active overrides. Blank = uses global default.</p>
           </div>
         )}
       </Card>
 
       <Card title='Per-Item Overrides (leave blank to inherit category or global)'>
         {mis.length===0?(
-          <p style={{fontSize:13,color:'#9ca3af'}}>No menu items yet.</p>
+          <p style={{fontSize:13,color:'var(--text-light)'}}>No menu items yet.</p>
         ):(
           <div style={{overflowX: 'auto'}}>
             <div style={{minWidth: 700}}>
-              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid #f1f1f1',marginBottom:4}}>
-                <span style={{fontSize:11,fontWeight:700,color:'#9ca3af'}}>ITEM</span>
-                <span style={{fontSize:11,fontWeight:700,color:'#9ca3af'}}>CATEGORY</span>
-                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'#9ca3af'}}>{f.l.toUpperCase()} ({f.u})</span>)}
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>ITEM</span>
+                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
+                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
               </div>
               {mis.map(mi=>(
-                <div key={mi.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid #f9fafb',alignItems:'center'}}>
-                  <span style={{fontSize:13,fontWeight:600,color:'#374151'}}>{mi.name}</span>
-                  <span style={{fontSize:12,color:'#9ca3af'}}>{mi.category||'—'}</span>
+                <div key={mi.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{mi.name}</span>
+                  <span style={{fontSize:12,color:'var(--text-light)'}}>{mi.category||'—'}</span>
                   {FIELDS.map(f=>{
                     const ov=draft.item_overrides[mi.id]?.[f.k]
                     const catV=draft.category_overrides[mi.category]?.[f.k]
                     const ph=catV!=null?`${catV} (cat)`:`${draft.global[f.k]} (glb)`
+                    const isPurple = ov!=null
+                    const isYellow = !isPurple && catV!=null
+                    
+                    let borderStyle = '1px solid var(--border-strong)'
+                    let bgStyle = 'var(--bg-card)'
+                    if (isPurple) {
+                      borderStyle = '1px solid #8b5cf6'
+                      bgStyle = 'rgba(139,92,246,0.06)'
+                    } else if (isYellow) {
+                      borderStyle = '1px solid #f59e0b'
+                      bgStyle = 'rgba(245,158,11,0.06)'
+                    }
+
                     return (
                       <div key={f.k} style={{position:'relative'}}>
                         <input type='number' min='0' step={f.step} placeholder={ph} value={ov!=null?ov:''}
                           onChange={e=>updItem(mi.id,f.k,e.target.value===''?null:e.target.value)}
-                          style={{width:'100%',boxSizing:'border-box',border:`1px solid ${ov!=null?'#a78bfa':'#e5e7eb'}`,borderRadius:6,padding:'5px 28px 5px 8px',fontSize:12,outline:'none',background:ov!=null?'#faf5ff':'#fff'}}/>
-                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'#9ca3af'}}>{f.u}</span>
+                          className="custom-input"
+                          style={{
+                            width:'100%',
+                            boxSizing:'border-box',
+                            border: borderStyle,
+                            borderRadius:6,
+                            padding:'5px 28px 5px 8px',
+                            fontSize:12,
+                            outline:'none',
+                            background: bgStyle,
+                            color:'var(--text-primary)',
+                            transition:'all 0.15s ease'
+                          }}/>
+                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
                       </div>
                     )
                   })}
                 </div>
               ))}
             </div>
-            <p style={{fontSize:11,color:'#9ca3af',marginTop:8}}>Yellow = category override · Purple = item override · Blank = inherits from category or global</p>
+            <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Yellow = category override · Purple = item override · Blank = inherits from category or global</p>
           </div>
         )}
       </Card>

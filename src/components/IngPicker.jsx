@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
-import { Search, Trash2 } from 'lucide-react'
+import { Search, Trash2, Package, FlaskConical } from 'lucide-react'
 import { Label } from './UIPrimitives.jsx'
-import { fc, rmUC, intUC, ingCost } from '../utils.js'
+import { fc, rmUC, intUC } from '../utils.js'
 
 export const IngPicker = ({ings, setIngs, rms, ints, noInts=false}) => {
   const [q, setQ] = useState('')
@@ -30,26 +30,66 @@ export const IngPicker = ({ings, setIngs, rms, ints, noInts=false}) => {
     <div style={{display:'flex',flexDirection:'column',gap:10}}>
       <Label>Ingredients</Label>
       <div style={{position:'relative'}}>
-        <Search size={13} style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#d1d5db'}}/>
+        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
         <input value={q} onChange={e=>setQ(e.target.value)}
           placeholder={`Search to add ${noInts?'raw materials':'raw materials or intermediates'}…`}
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid #e5e7eb',borderRadius:8,padding:'8px 10px 8px 32px',fontSize:13,outline:'none'}}/>
+          className="custom-input"
+          style={{
+            width:'100%',
+            boxSizing:'border-box',
+            border:'1px solid var(--border-strong)',
+            borderRadius:8,
+            padding:'8px 10px 8px 32px',
+            fontSize:13,
+            color:'var(--text-primary)',
+            background:'var(--bg-card)',
+            outline:'none',
+            transition:'all 0.15s ease'
+          }}/>
         {q&&(
-          <div style={{position:'absolute',zIndex:30,top:'calc(100% + 4px)',left:0,right:0,background:'#fff',border:'1px solid #e5e7eb',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',maxHeight:220,overflowY:'auto'}}>
-            {filtered.length===0&&<div style={{padding:'12px 16px',fontSize:13,color:'#9ca3af'}}>No items found</div>}
+          <div style={{
+            position:'absolute',
+            zIndex:30,
+            top:'calc(100% + 4px)',
+            left:0,
+            right:0,
+            background:'var(--bg-card)',
+            border:'1px solid var(--border-strong)',
+            borderRadius:12,
+            boxShadow:'var(--shadow-lg)',
+            maxHeight:220,
+            overflowY:'auto'
+          }}>
+            {filtered.length===0&&<div style={{padding:'12px 16px',fontSize:13,color:'var(--text-light)'}}>No items found</div>}
             {filtered.map(it=>{
               const uc = it.type==='raw'?rmUC(it):intUC(it,rms,ints)
+              const Icon = it.type === 'raw' ? Package : FlaskConical
               return (
                 <button key={it.id} onClick={()=>add(it)}
-                  style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',border:'none',background:'none',cursor:'pointer',textAlign:'left'}}
-                  onMouseOver={e=>e.currentTarget.style.background='#f0fdfa'} onMouseOut={e=>e.currentTarget.style.background='none'}>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:600,color:'#111'}}>{it.name}</div>
-                    <div style={{fontSize:11,color:'#9ca3af'}}>{it.type==='raw'?'Raw material':'Intermediate'} · per {it.du}</div>
+                  style={{
+                    width:'100%',
+                    display:'flex',
+                    alignItems:'center',
+                    justifyContent:'space-between',
+                    padding:'10px 16px',
+                    border:'none',
+                    background:'none',
+                    cursor:'pointer',
+                    textAlign:'left',
+                    transition:'background 0.1s'
+                  }}
+                  onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'}
+                  onMouseOut={e=>e.currentTarget.style.background='none'}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <Icon size={14} style={{color:it.type==='raw'?'#2563eb':'#8b5cf6',flexShrink:0}}/>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:'var(--text-primary)'}}>{it.name}</div>
+                      <div style={{fontSize:11,color:'var(--text-light)'}}>{it.type==='raw'?'Raw material':'Intermediate'} · per {it.du}</div>
+                    </div>
                   </div>
                   <div style={{textAlign:'right',fontSize:11}}>
-                    <div style={{fontWeight:600,color:'#374151'}}>{fc(uc)}</div>
-                    <div style={{color:'#9ca3af'}}>/{it.du}</div>
+                    <div style={{fontWeight:600,color:'var(--text-secondary)'}}>{fc(uc)}</div>
+                    <div style={{color:'var(--text-light)'}}>/{it.du}</div>
                   </div>
                 </button>
               )
@@ -58,35 +98,53 @@ export const IngPicker = ({ings, setIngs, rms, ints, noInts=false}) => {
         )}
       </div>
       {ings.length>0?(
-        <div style={{border:'1px solid #e5e7eb',borderRadius:12,overflow:'hidden'}}>
+        <div style={{border:'1px solid var(--border-strong)',borderRadius:12,overflow:'hidden'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
             <thead>
-              <tr style={{background:'#f9fafb'}}>
+              <tr style={{background:'var(--bg-hover)'}}>
                 {['Ingredient','Unit Cost','Qty','Unit','Line Cost',''].map(h=>(
-                  <th key={h} style={{padding:'8px 12px',textAlign:h==='Qty'||h==='Unit Cost'||h==='Line Cost'?'right':'left',fontWeight:600,color:'#9ca3af',fontSize:11}}>{h}</th>
+                  <th key={h} style={{padding:'8px 12px',textAlign:h==='Qty'||h==='Unit Cost'||h==='Line Cost'?'right':'left',fontWeight:600,color:'var(--text-light)',fontSize:11}}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {ings.map((ing,idx)=>{
                 const info=getInfo(ing), uc=getUC(ing)
+                const Icon = ing.type === 'raw' ? Package : FlaskConical
                 return (
-                  <tr key={ing.id} style={{borderTop:'1px solid #f3f4f6'}}>
+                  <tr key={ing.id} style={{borderTop:'1px solid var(--border-color)',background:'var(--bg-card)'}}>
                     <td style={{padding:'8px 12px'}}>
-                      <div style={{fontWeight:600,color:'#111'}}>{info?.name||'?'}</div>
-                      <div style={{fontSize:10,color:'#9ca3af'}}>{ing.type==='raw'?'Raw':'Intermediate'}</div>
+                      <div style={{display:'flex',alignItems:'center',gap:6}}>
+                        <Icon size={13} style={{color:ing.type==='raw'?'#2563eb':'#8b5cf6',flexShrink:0}}/>
+                        <div>
+                          <div style={{fontWeight:600,color:'var(--text-primary)'}}>{info?.name||'?'}</div>
+                          <div style={{fontSize:10,color:'var(--text-light)'}}>{ing.type==='raw'?'Raw':'Intermediate'}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td style={{padding:'8px 12px',textAlign:'right',color:'#6b7280'}}>{fc(uc)}</td>
+                    <td style={{padding:'8px 12px',textAlign:'right',color:'var(--text-secondary)'}}>{fc(uc)}</td>
                     <td style={{padding:'8px 12px',textAlign:'right'}}>
                       <input type='number' value={ing.qty} min='0' step='any'
                         onChange={e=>updQty(idx,e.target.value)}
-                        style={{width:72,border:'1px solid #e5e7eb',borderRadius:6,padding:'4px 8px',textAlign:'right',fontSize:12,outline:'none'}}/>
+                        className="custom-input"
+                        style={{
+                          width:72,
+                          border:'1px solid var(--border-strong)',
+                          borderRadius:6,
+                          padding:'4px 8px',
+                          textAlign:'right',
+                          fontSize:12,
+                          color:'var(--text-primary)',
+                          background:'var(--bg-card)',
+                          outline:'none',
+                          transition:'all 0.15s ease'
+                        }}/>
                     </td>
-                    <td style={{padding:'8px 12px',color:'#6b7280'}}>{ing.unit}</td>
-                    <td style={{padding:'8px 12px',textAlign:'right',fontWeight:700,color:'#374151'}}>{fc(uc*(ing.qty||0))}</td>
+                    <td style={{padding:'8px 12px',color:'var(--text-muted)'}}>{ing.unit}</td>
+                    <td style={{padding:'8px 12px',textAlign:'right',fontWeight:700,color:'var(--text-secondary)'}}>{fc(uc*(ing.qty||0))}</td>
                     <td style={{padding:'8px 12px'}}>
-                      <button onClick={()=>remove(idx)} style={{border:'none',background:'none',cursor:'pointer',color:'#d1d5db',display:'flex',padding:2}}
-                        onMouseOver={e=>e.currentTarget.style.color='#ef4444'} onMouseOut={e=>e.currentTarget.style.color='#d1d5db'}>
+                      <button onClick={()=>remove(idx)} style={{border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',display:'flex',padding:2,transition:'color 0.15s'}}
+                        onMouseOver={e=>e.currentTarget.style.color='#ef4444'} onMouseOut={e=>e.currentTarget.style.color='var(--text-light)'}>
                         <Trash2 size={12}/>
                       </button>
                     </td>
@@ -95,16 +153,16 @@ export const IngPicker = ({ings, setIngs, rms, ints, noInts=false}) => {
               })}
             </tbody>
             <tfoot>
-              <tr style={{background:'#f0fdfa',borderTop:'1px solid #99f6e4'}}>
-                <td colSpan='4' style={{padding:'8px 12px',fontSize:12,fontWeight:700,color:'#134e4a'}}>Total ingredient cost</td>
-                <td style={{padding:'8px 12px',textAlign:'right',fontSize:14,fontWeight:800,color:'#0f766e'}}>{fc(total)}</td>
+              <tr style={{background:'var(--bg-active-tab)',borderTop:'1px solid var(--primary-hover)'}}>
+                <td colSpan='4' style={{padding:'8px 12px',fontSize:12,fontWeight:700,color:'var(--primary)'}}>Total ingredient cost</td>
+                <td style={{padding:'8px 12px',textAlign:'right',fontSize:14,fontWeight:800,color:'var(--primary)'}}>{fc(total)}</td>
                 <td/>
               </tr>
             </tfoot>
           </table>
         </div>
       ):(
-        <div style={{border:'2px dashed #f1f1f1',borderRadius:12,padding:24,textAlign:'center',fontSize:13,color:'#d1d5db'}}>
+        <div style={{border:'2px dashed var(--border-color)',borderRadius:12,padding:24,textAlign:'center',fontSize:13,color:'var(--text-light)'}}>
           Search above to add ingredients
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChefHat, Mail, Lock, Plus, Users, ArrowRight, AlertCircle, Sparkles, RefreshCw, LogOut, CheckSquare, Square } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useUI } from '../context/UIContext.jsx'
 import { Btn } from './UIPrimitives.jsx'
 
 const GoogleIcon = () => (
@@ -14,6 +15,7 @@ const GoogleIcon = () => (
 
 export default function AuthPortal() {
   const { user, profile, pendingRequest, signIn, signUp, signInWithGoogle, signOut, createOrg, joinOrg, cancelJoinRequest, refreshProfile } = useAuth()
+  const { theme } = useUI()
   
   // Auth state
   const [isSignUp, setIsSignUp] = useState(false)
@@ -519,13 +521,14 @@ export default function AuthPortal() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #e0f2fe 100%)',
+      background: theme === 'dark' ? 'linear-gradient(135deg, #090d16 0%, #0d1527 50%, #081121 100%)' : 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 50%, #e0f2fe 100%)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '20px',
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      transition: 'background 0.3s ease'
     }}>
       {/* Background blobs */}
       <div style={{
@@ -533,7 +536,7 @@ export default function AuthPortal() {
         width: 320,
         height: 320,
         borderRadius: '50%',
-        background: 'rgba(45, 212, 191, 0.15)',
+        background: theme === 'dark' ? 'rgba(20, 184, 166, 0.05)' : 'rgba(45, 212, 191, 0.15)',
         filter: 'blur(60px)',
         top: '10%',
         left: '15%',
@@ -544,7 +547,7 @@ export default function AuthPortal() {
         width: 400,
         height: 400,
         borderRadius: '50%',
-        background: 'rgba(56, 189, 248, 0.15)',
+        background: theme === 'dark' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(56, 189, 248, 0.15)',
         filter: 'blur(80px)',
         bottom: '10%',
         right: '15%',
@@ -554,11 +557,11 @@ export default function AuthPortal() {
       <div style={{
         width: '100%',
         maxWidth: 440,
-        background: 'rgba(255, 255, 255, 0.75)',
+        background: theme === 'dark' ? 'rgba(21, 31, 50, 0.85)' : 'rgba(255, 255, 255, 0.75)',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255, 255, 255, 0.5)',
+        border: theme === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(255, 255, 255, 0.5)',
         borderRadius: 24,
-        boxShadow: '0 25px 50px -12px rgba(15, 118, 110, 0.08), 0 0 1px rgba(0, 0, 0, 0.05)',
+        boxShadow: theme === 'dark' ? 'var(--shadow-xl)' : '0 25px 50px -12px rgba(15, 118, 110, 0.08), 0 0 1px rgba(0, 0, 0, 0.05)',
         padding: '36px 32px',
         zIndex: 10,
         position: 'relative'
@@ -567,7 +570,7 @@ export default function AuthPortal() {
         {(!user || (!profile?.org_id && !pendingRequest)) && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 28 }}>
             <div style={{
-              background: 'linear-gradient(135deg, #0d9488, #0f766e)',
+              background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               borderRadius: 16,
               padding: 12,
               display: 'flex',
@@ -576,9 +579,9 @@ export default function AuthPortal() {
               <ChefHat size={28} style={{ color: '#fff' }} />
             </div>
             <div style={{ textAlign: 'center' }}>
-              <span style={{ fontWeight: 800, fontSize: 24, color: '#111', letterSpacing: '-0.02em' }}>MiseMap</span>
-              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                <Sparkles size={12} style={{ color: '#0d9488' }} /> Recipe Costing & Org Management
+              <span style={{ fontWeight: 800, fontSize: 24, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>MiseMap</span>
+              <p style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <Sparkles size={12} style={{ color: 'var(--primary)' }} /> Recipe Costing & Org Management
               </p>
             </div>
           </div>

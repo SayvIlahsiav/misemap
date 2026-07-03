@@ -7,11 +7,13 @@ import { aiSuggest } from '../services/ai.js'
 import { FOOD_TYPES, UNITS, NF, FT_COLOR_MAP } from '../constants.js'
 import { uid, fc, fp, rmUC, ingCost, intUC, miFC, intNut, miNut, effVal } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
+import { useUI } from '../context/UIContext.jsx'
 
 // ─────────────────────────────────────────────────────────
 // RAW MATERIAL MODAL
 // ─────────────────────────────────────────────────────────
 export const RMModal = ({rm, onSave, onClose}) => {
+  const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',buy_unit:'kg',pack_cost:0,pack_qty:1,usage_unit:'g',conversion:1000,...Object.fromEntries(NF.map(f=>[f.k,0]))}
   const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
   const [ai, setAi] = useState(null)
@@ -23,10 +25,10 @@ export const RMModal = ({rm, onSave, onClose}) => {
   const sameUnit = f.usage_unit===f.buy_unit
 
   const runAI = async () => {
-    if (!f.name.trim()){alert('Enter a name first.');return}
+    if (!f.name.trim()){showToast('Enter a name first.', 'warning');return}
     setAiL(true)
     try { setAi(await aiSuggest(f.name,'raw')) }
-    catch(e){ alert('AI suggestion failed: '+e.message) }
+    catch(e){ showToast('AI suggestion failed: '+e.message, 'error') }
     finally { setAiL(false) }
   }
   const applyAI = () => {
@@ -143,6 +145,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
 // MENU ITEM MODAL
 // ─────────────────────────────────────────────────────────
 export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
+  const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null,takeaway_price_override:null,delivery_price_override:null}
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
   const [ai,setAi] = useState(null)
@@ -175,10 +178,10 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const valid = f.name&&f.ingredients.length>0
 
   const runAI = async () => {
-    if (!f.name.trim()){alert('Enter a name first.');return}
+    if (!f.name.trim()){showToast('Enter a name first.', 'warning');return}
     setAiL(true)
     try { setAi(await aiSuggest(f.name,'menu')) }
-    catch(e){ alert('AI suggestion failed: '+e.message) }
+    catch(e){ showToast('AI suggestion failed: '+e.message, 'error') }
     finally { setAiL(false) }
   }
   const applyAI = () => { if(!ai)return; setF(p=>({...p,...ai})); setAi(null) }
@@ -187,33 +190,34 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
     const eff = effVal(field,f.id,f.category,pc)
     const hasOvr = f[ovrKey]!=null
     return (
-      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f9fafb'}}>
-        <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>{label}</span>
+      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
+        <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>{label}</span>
         {hasOvr?(
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{position:'relative'}}>
               <input type='number' value={f[ovrKey]} min='0' step='any'
                 onChange={e=>upd(ovrKey,parseFloat(e.target.value)||0)}
-                style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
-              <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>{unit}</span>
+                className="custom-input"
+                style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+              <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>{unit}</span>
             </div>
-            <button onClick={()=>upd(ovrKey,null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+            <button onClick={()=>upd(ovrKey,null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
               <RotateCcw size={11}/> Reset
             </button>
           </div>
         ):(
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-            <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{isX?`${eff.v}×`:`${unit}${eff.v}`}</span>
+            <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{isX?`${eff.v}×`:`${unit}${eff.v}`}</span>
             <SrcPill src={eff.src}/>
-            <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
           </div>
         )}
       </div>
     )
   }
 
-  const fcBg     = pct>threshold?'#fef2f2':pct>threshold*0.85?'#fff7ed':'#f0fdf4'
-  const fcBorder = pct>threshold?'#fecaca':pct>threshold*0.85?'#fed7aa':'#bbf7d0'
+  const fcBg     = pct>threshold?'rgba(239,68,68,0.06)':pct>threshold*0.85?'rgba(249,115,22,0.06)':'rgba(20,184,166,0.06)'
+  const fcBorder = pct>threshold?'rgba(239,68,68,0.2)':pct>threshold*0.85?'rgba(249,115,22,0.2)':'rgba(20,184,166,0.2)'
 
   return (
     <Modal title={item?'Edit Menu Item':'Add Menu Item'} onClose={onClose} wide>
@@ -233,70 +237,73 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
       <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints}/>
 
       <SecTitle>Pricing Overrides</SecTitle>
-      <div style={{background:'#f9fafb',borderRadius:12,padding:'4px 16px'}}>
+      <div style={{background:'var(--bg-hover)',borderRadius:12,padding:'4px 16px'}}>
         <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
         <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
         <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f3f4f6'}}>
-          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Selling Price</span>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
+          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Selling Price</span>
           {f.selling_price_override != null ? (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.selling_price_override} min='0' step='any'
                   onChange={e=>upd('selling_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+              <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
                 <RotateCcw size={11}/> Reset
               </button>
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)} (Suggested)</span>
-              <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_sp)}</span>
+              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+              <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
             </div>
           )}
         </div>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid #f3f4f6'}}>
-          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Takeaway Price</span>
+        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
+          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Takeaway Price</span>
           {f.takeaway_price_override != null ? (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.takeaway_price_override} min='0' step='any'
                   onChange={e=>upd('takeaway_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+              <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
                 <RotateCcw size={11}/> Reset
               </button>
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_tp)} (Suggested)</span>
-              <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_tp)}</span>
+              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+              <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
             </div>
           )}
         </div>
         <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
-          <span style={{fontSize:12,color:'#6b7280',width:150,flexShrink:0}}>Custom Delivery Price</span>
+          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Delivery Price</span>
           {f.delivery_price_override != null ? (
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.delivery_price_override} min='0' step='any'
                   onChange={e=>upd('delivery_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid #2dd4bf',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#9ca3af'}}>₹</span>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
+              <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
                 <RotateCcw size={11}/> Reset
               </button>
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_dp)} (Suggested)</span>
-              <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'#0d9488',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_dp)}</span>
+              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+              <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
             </div>
           )}
         </div>
@@ -305,97 +312,114 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
       {f.ingredients.length>0&&(
         <>
           <SecTitle>Live Pricing Preview</SecTitle>
-          <div style={{background:fcBg,border:`1px solid ${fcBorder}`,borderRadius:12,padding:16}}>
-            {pct>threshold&&(
-              <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#991b1b',marginBottom:12}}>
-                <AlertTriangle size={13}/> FC% exceeds your {threshold}% alert threshold!
-              </div>
-            )}
-            <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',gap:16}}>
-              {/* Suggested Column */}
-              <div style={{background:'#fff',padding:12,borderRadius:10,border:'1px solid #e5e7eb'}}>
-                <div style={{fontWeight:700,fontSize:12,color:'#4b5563',marginBottom:10,borderBottom:'1px solid #f3f4f6',paddingBottom:4}}>Suggested Pricing</div>
-                <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Dine-In</div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_sp)}</span>
-                      <span style={{fontSize:11,fontWeight:600,color:sugg_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_pct)} FC</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Takeaway (with Pkg)</div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_tp)}</span>
-                      <span style={{fontSize:11,fontWeight:600,color:sugg_takeaway_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_takeaway_pct)} FC</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af',fontWeight:600}}>Delivery (Net)</div>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                      <span style={{fontSize:13,fontWeight:700,color:'#374151'}}>{fc(sugg_dp)}</span>
-                      <span style={{fontSize:11,fontWeight:600,color:sugg_delivery_pct>threshold?'#dc2626':'#16a34a'}}>{fp(sugg_delivery_pct)} FC</span>
-                    </div>
-                  </div>
+          <div style={{background:fcBg,border:`1px solid ${fcBorder}`,borderRadius:12,padding:16,transition:'all 0.2s'}}>
+        {pct>threshold&&(
+          <div style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'#ef4444',marginBottom:12,fontWeight:600}}>
+            <AlertTriangle size={13}/> FC% exceeds your {threshold}% alert threshold!
+          </div>
+        )}
+        <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',gap:16}}>
+          {/* Suggested Column */}
+          <div style={{background:'var(--bg-card)',padding:12,borderRadius:10,border:'1px solid var(--border-strong)'}}>
+            <div style={{fontWeight:700,fontSize:12,color:'var(--text-secondary)',marginBottom:10,borderBottom:'1px solid var(--border-color)',paddingBottom:4}}>Suggested Pricing</div>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div>
+                <div style={{fontSize:10,color:'var(--text-light)',fontWeight:600}}>Dine-In</div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                  <span style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{fc(sugg_sp)}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:sugg_pct>threshold?'#ef4444':'#10b981'}}>{fp(sugg_pct)} FC</span>
                 </div>
               </div>
-
-              {/* Custom Column */}
-              <div style={{background: hasCustom ? '#f0fdfa' : '#fafafa',padding:12,borderRadius:10,border: hasCustom ? '1px solid #99f6e4' : '1px solid #f3f4f6'}}>
-                <div style={{fontWeight:700,fontSize:12,color: hasCustom ? '#0f766e' : '#9ca3af',marginBottom:10,borderBottom: hasCustom ? '1px solid #ccfbf1' : '1px solid #f3f4f6',paddingBottom:4}}>
-                  {hasCustom ? 'Custom Pricing (Active)' : 'Custom Pricing (None)'}
+              <div>
+                <div style={{fontSize:10,color:'var(--text-light)',fontWeight:600}}>Takeaway (with Pkg)</div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                  <span style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{fc(sugg_tp)}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:sugg_takeaway_pct>threshold?'#ef4444':'#10b981'}}>{fp(sugg_takeaway_pct)} FC</span>
                 </div>
-                {hasCustom ? (
-                  <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                    <div>
-                      <div style={{fontSize:10,color: f.selling_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Dine-In {f.selling_price_override != null && '(Custom)'}</div>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontSize:13,fontWeight:700,color: f.selling_price_override != null ? '#0d9488' : '#374151'}}>{fc(sp)}</span>
-                        <span style={{fontSize:11,fontWeight:600,color:pct>threshold?'#dc2626':'#16a34a'}}>{fp(pct)} FC</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:10,color: f.takeaway_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Takeaway {f.takeaway_price_override != null && '(Custom)'}</div>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontSize:13,fontWeight:700,color: f.takeaway_price_override != null ? '#0d9488' : '#374151'}}>{fc(tp)}</span>
-                        <span style={{fontSize:11,fontWeight:600,color:takeaway_pct>threshold?'#dc2626':'#16a34a'}}>{fp(takeaway_pct)} FC</span>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:10,color: f.delivery_price_override != null ? '#0d9488' : '#9ca3af',fontWeight:600}}>Delivery {f.delivery_price_override != null && '(Custom)'}</div>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
-                        <span style={{fontSize:13,fontWeight:700,color: f.delivery_price_override != null ? '#0d9488' : '#374151'}}>{fc(dp)}</span>
-                        <span style={{fontSize:11,fontWeight:600,color:delivery_pct>threshold?'#dc2626':'#16a34a'}}>{fp(delivery_pct)} FC</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{fontSize:11,color:'#9ca3af',textAlign:'center',padding:'32px 0',lineHeight:1.4}}>
-                    Using suggested pricing. Click Override under Pricing Overrides to set custom prices.
-                  </div>
-                )}
               </div>
-
-              {/* Cost & Margins Column */}
-              <div style={{background:'#fff',padding:12,borderRadius:10,border:'1px solid #e5e7eb'}}>
-                <div style={{fontWeight:700,fontSize:12,color:'#4b5563',marginBottom:8,borderBottom:'1px solid #f3f4f6',paddingBottom:4}}>Cost & Markup</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Food Cost</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#111'}}>{fc(food)}</div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Packaging</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#111'}}>{fc(act_pkg)}</div>
-                  </div>
-                  <div style={{gridColumn:'1/-1'}}>
-                    <div style={{fontSize:10,color:'#9ca3af'}}>Delivery Markup</div>
-                    <div style={{fontSize:13,fontWeight:700,color:'#111'}}>{act_dm}%</div>
-                  </div>
+              <div>
+                <div style={{fontSize:10,color:'var(--text-light)',fontWeight:600}}>Delivery (Markup applied)</div>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                  <span style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{fc(sugg_dp)}</span>
+                  <span style={{fontSize:11,fontWeight:600,color:sugg_delivery_pct>threshold?'#ef4444':'#10b981'}}>{fp(sugg_delivery_pct)} FC</span>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Custom Column */}
+          <div style={{
+            background: hasCustom ? 'var(--bg-active-tab)' : 'var(--bg-hover)',
+            padding:12,
+            borderRadius:10,
+            border: hasCustom ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+            transition: 'all 0.15s ease'
+          }}>
+            <div style={{
+              fontWeight:700,
+              fontSize:12,
+              color: hasCustom ? 'var(--primary)' : 'var(--text-light)',
+              marginBottom:10,
+              borderBottom: hasCustom ? '1px solid var(--primary-light)' : '1px solid var(--border-color)',
+              paddingBottom:4
+            }}>
+              {hasCustom ? 'Custom Pricing (Active)' : 'Custom Pricing (None)'}
+            </div>
+            {hasCustom ? (
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <div>
+                  <div style={{fontSize:10,color: f.selling_price_override != null ? 'var(--primary)' : 'var(--text-light)',fontWeight:600}}>Dine-In {f.selling_price_override != null && '(Custom)'}</div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                    <span style={{fontSize:13,fontWeight:700,color: f.selling_price_override != null ? 'var(--primary)' : 'var(--text-primary)'}}>{fc(sp)}</span>
+                    <span style={{fontSize:11,fontWeight:600,color:pct>threshold?'#ef4444':'#10b981'}}>{fp(pct)} FC</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color: f.takeaway_price_override != null ? 'var(--primary)' : 'var(--text-light)',fontWeight:600}}>Takeaway {f.takeaway_price_override != null && '(Custom)'}</div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                    <span style={{fontSize:13,fontWeight:700,color: f.takeaway_price_override != null ? 'var(--primary)' : 'var(--text-primary)'}}>{fc(tp)}</span>
+                    <span style={{fontSize:11,fontWeight:600,color:takeaway_pct>threshold?'#ef4444':'#10b981'}}>{fp(takeaway_pct)} FC</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color: f.delivery_price_override != null ? 'var(--primary)' : 'var(--text-light)',fontWeight:600}}>Delivery {f.delivery_price_override != null && '(Custom)'}</div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                    <span style={{fontSize:13,fontWeight:700,color: f.delivery_price_override != null ? 'var(--primary)' : 'var(--text-primary)'}}>{fc(dp)}</span>
+                    <span style={{fontSize:11,fontWeight:600,color:delivery_pct>threshold?'#ef4444':'#10b981'}}>{fp(delivery_pct)} FC</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{fontSize:11,color:'var(--text-light)',textAlign:'center',padding:'32px 0',lineHeight:1.4}}>
+                Using suggested pricing. Click Override under Pricing Overrides to set custom prices.
+              </div>
+            )}
+          </div>
+
+          {/* Cost & Margins Column */}
+          <div style={{background:'var(--bg-card)',padding:12,borderRadius:10,border:'1px solid var(--border-strong)'}}>
+            <div style={{fontWeight:700,fontSize:12,color:'var(--text-secondary)',marginBottom:8,borderBottom:'1px solid var(--border-color)',paddingBottom:4}}>Cost & Markup</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              <div>
+                <div style={{fontSize:10,color:'var(--text-light)'}}>Food Cost</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{fc(food)}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:'var(--text-light)'}}>Packaging</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{fc(act_pkg)}</div>
+              </div>
+              <div style={{gridColumn:'1/-1'}}>
+                <div style={{fontSize:10,color:'var(--text-light)'}}>Delivery Markup</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{act_dm}%</div>
+              </div>
+              <div style={{gridColumn:'1/-1',marginTop:8,borderTop:'1px solid var(--border-color)',paddingTop:8}}>
+                <div style={{fontSize:10,color:'var(--text-light)'}}>Effective Multiplier</div>
+                <div style={{fontSize:13,fontWeight:700,color:'var(--primary)'}}>{act_spm}×</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
           <SecTitle>Total Nutrition (per serving)</SecTitle>
           <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
@@ -468,6 +492,7 @@ export const CascadeModal = ({data, onConfirm, onClose, mis}) => {
 // BATCH IMPORT MODAL
 // ─────────────────────────────────────────────────────────
 export const BatchImportModal = ({rms, onSave, onClose}) => {
+  const { showToast } = useUI()
   const [parsed, setParsed] = useState([])
   const [fileName, setFileName] = useState('')
   const isMobile = useIsMobile()
@@ -522,7 +547,7 @@ export const BatchImportModal = ({rms, onSave, onClose}) => {
         
         setParsed(validated)
       } catch (err) {
-        alert('Failed to parse CSV: ' + err.message)
+        showToast('Failed to parse CSV: ' + err.message, 'error')
       }
     }
     reader.readAsText(file)
@@ -678,6 +703,7 @@ const parseCSV = (text) => {
 // BATCH IMPORT INTERMEDIATES MODAL
 // ─────────────────────────────────────────────────────────
 export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
+  const { showToast } = useUI()
   const [parsed, setParsed] = useState([])
   const [fileName, setFileName] = useState('')
   const isMobile = useIsMobile()
@@ -763,7 +789,7 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
         
         setParsed(validated)
       } catch (err) {
-        alert('Failed to parse CSV: ' + err.message)
+        showToast('Failed to parse CSV: ' + err.message, 'error')
       }
     }
     reader.readAsText(file)
@@ -894,6 +920,7 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
 // BATCH IMPORT MENU ITEMS MODAL
 // ─────────────────────────────────────────────────────────
 export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
+  const { showToast } = useUI()
   const [parsed, setParsed] = useState([])
   const [fileName, setFileName] = useState('')
   const isMobile = useIsMobile()
@@ -985,7 +1012,7 @@ export const BatchImportMIModal = ({rms, ints, mis, onSave, onClose, pc}) => {
         
         setParsed(validated)
       } catch (err) {
-        alert('Failed to parse CSV: ' + err.message)
+        showToast('Failed to parse CSV: ' + err.message, 'error')
       }
     }
     reader.readAsText(file)
