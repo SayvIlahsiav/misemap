@@ -89,19 +89,13 @@ export const AuthProvider = ({ children }) => {
         setPendingRequest(null)
         setPendingInvitation(null)
 
-        // Fetch invited emails list from kv_store
-        const { data: inviteData } = await supabase
-          .from('kv_store')
-          .select('value')
+        // Fetch invited emails list from org_invitations
+        const { data: inviteData, error: inviteErr } = await supabase
+          .from('org_invitations')
+          .select('email')
           .eq('org_id', prof.org_id)
-          .eq('key', 'invited_emails')
-          .maybeSingle()
-        if (inviteData?.value) {
-          try {
-            setInvitedEmails(JSON.parse(inviteData.value))
-          } catch(e) {
-            setInvitedEmails([])
-          }
+        if (!inviteErr && inviteData) {
+          setInvitedEmails(inviteData.map(d => d.email))
         } else {
           setInvitedEmails([])
         }
@@ -119,32 +113,18 @@ export const AuthProvider = ({ children }) => {
         if (reqError) throw reqError
         setPendingRequest(req)
 
-        // If not in an org, check for invitations matching user email
-        const { data: invites, error: inviteError } = await supabase
-          .from('kv_store')
-          .select('org_id, value')
-          .eq('key', 'invited_emails')
+        // Check for invitations matching user email
+        const { data: myInvite, error: inviteError } = await supabase
+          .from('org_invitations')
+          .select('org_id, organizations(name)')
+          .eq('email', u.email.trim().toLowerCase())
+          .maybeSingle()
 
-        if (!inviteError && invites) {
-          const myInvite = invites.find(inv => {
-            try {
-              const emails = JSON.parse(inv.value)
-              return Array.isArray(emails) && emails.includes(u.email.trim().toLowerCase())
-            } catch(e) {
-              return false
-            }
+        if (!inviteError && myInvite) {
+          setPendingInvitation({
+            org_id: myInvite.org_id,
+            name: myInvite.organizations?.name || 'an organization'
           })
-
-          if (myInvite) {
-            const { data: o } = await supabase
-              .from('organizations')
-              .select('name')
-              .eq('id', myInvite.org_id)
-              .maybeSingle()
-            setPendingInvitation({ org_id: myInvite.org_id, name: o?.name || 'an organization' })
-          } else {
-            setPendingInvitation(null)
-          }
         } else {
           setPendingInvitation(null)
         }
@@ -407,35 +387,18 @@ export const AuthProvider = ({ children }) => {
     const cleanEmail = email.trim().toLowerCase()
     if (!cleanEmail) throw new Error('Please enter a valid email.')
     
-    const { data, error: getErr } = await supabase
-      .from('kv_store')
-      .select('value')
-      .eq('org_id', org.id)
-      .eq('key', 'invited_emails')
-      .maybeSingle()
-    
-    if (getErr) throw getErr
-    
-    let emails = []
-    if (data?.value) {
-      try {
-        emails = JSON.parse(data.value)
-        if (!Array.isArray(emails)) emails = []
-      } catch (e) {
-        emails = []
+    const { error: setErr } = await supabase
+      .from('org_invitations')
+      .insert({ org_id: org.id, email: cleanEmail })
+      
+    if (setErr) {
+      if (setErr.code === '23505') {
+        throw new Error('This email has already been invited.')
       }
+      throw setErr
     }
     
-    if (emails.includes(cleanEmail)) throw new Error('This email has already been invited.')
-    
-    const newEmails = [...emails, cleanEmail]
-    
-    const { error: setErr } = await supabase
-      .from('kv_store')
-      .upsert({ org_id: org.id, key: 'invited_emails', value: JSON.stringify(newEmails) }, { onConflict: 'org_id,key' })
-      
-    if (setErr) throw setErr
-    setInvitedEmails(newEmails)
+    setInvitedEmails(prev => [...prev.filter(e => e !== cleanEmail), cleanEmail])
     showToast(`Invitation sent to ${cleanEmail}!`, 'success')
   }
 
@@ -444,32 +407,14 @@ export const AuthProvider = ({ children }) => {
     if (profile?.role !== 'owner') throw new Error('Only the owner can manage invitations.')
     
     const cleanEmail = email.trim().toLowerCase()
-    const { data, error: getErr } = await supabase
-      .from('kv_store')
-      .select('value')
-      .eq('org_id', org.id)
-      .eq('key', 'invited_emails')
-      .maybeSingle()
-      
-    if (getErr) throw getErr
-    
-    let emails = []
-    if (data?.value) {
-      try {
-        emails = JSON.parse(data.value)
-      } catch (e) {
-        emails = []
-      }
-    }
-    
-    const newEmails = emails.filter(e => e !== cleanEmail)
-    
     const { error: setErr } = await supabase
-      .from('kv_store')
-      .upsert({ org_id: org.id, key: 'invited_emails', value: JSON.stringify(newEmails) }, { onConflict: 'org_id,key' })
+      .from('org_invitations')
+      .delete()
+      .eq('org_id', org.id)
+      .eq('email', cleanEmail)
       
     if (setErr) throw setErr
-    setInvitedEmails(newEmails)
+    setInvitedEmails(prev => prev.filter(e => e !== cleanEmail))
     showToast(`Invitation revoked.`, 'info')
   }
 
@@ -485,22 +430,11 @@ export const AuthProvider = ({ children }) => {
         
       if (linkErr) throw linkErr
       
-      const { data, error: getErr } = await supabase
-        .from('kv_store')
-        .select('value')
+      await supabase
+        .from('org_invitations')
+        .delete()
         .eq('org_id', orgId)
-        .eq('key', 'invited_emails')
-        .maybeSingle()
-        
-      if (!getErr && data?.value) {
-        try {
-          let emails = JSON.parse(data.value)
-          emails = emails.filter(e => e !== user.email.trim().toLowerCase())
-          await supabase
-            .from('kv_store')
-            .upsert({ org_id: orgId, key: 'invited_emails', value: JSON.stringify(emails) }, { onConflict: 'org_id,key' })
-        } catch(e) {}
-      }
+        .eq('email', user.email.trim().toLowerCase())
       
       setPendingInvitation(null)
       await fetchProfile(user)
@@ -515,22 +449,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const orgId = pendingInvitation.org_id
       
-      const { data, error: getErr } = await supabase
-        .from('kv_store')
-        .select('value')
+      await supabase
+        .from('org_invitations')
+        .delete()
         .eq('org_id', orgId)
-        .eq('key', 'invited_emails')
-        .maybeSingle()
-        
-      if (!getErr && data?.value) {
-        try {
-          let emails = JSON.parse(data.value)
-          emails = emails.filter(e => e !== user.email.trim().toLowerCase())
-          await supabase
-            .from('kv_store')
-            .upsert({ org_id: orgId, key: 'invited_emails', value: JSON.stringify(emails) }, { onConflict: 'org_id,key' })
-        } catch(e) {}
-      }
+        .eq('email', user.email.trim().toLowerCase())
       
       setPendingInvitation(null)
       await fetchProfile(user)

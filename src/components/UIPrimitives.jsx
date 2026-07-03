@@ -91,12 +91,12 @@ export const Label = ({children}) => (
   <div style={{fontSize:11,fontWeight:600,color:'var(--text-muted)',textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:6}}>{children}</div>
 )
 
-export const Inp = ({label, v, onChange, type='text', ph, req, unit, min, step, readOnly, style={}}) => (
+export const Inp = ({label, v, onChange, type='text', ph, req, unit, min, step, readOnly, disabled, style={}}) => (
   <div style={{display:'flex',flexDirection:'column',gap:4,...style}}>
     {label && <Label>{label}{req&&<span style={{color:'#ef4444',marginLeft:2}}>*</span>}</Label>}
     <div style={{position:'relative'}}>
       <input type={type} value={v} onChange={e=>onChange(e.target.value)} placeholder={ph}
-        min={min} step={step} readOnly={readOnly}
+        min={min} step={step} readOnly={readOnly} disabled={disabled || readOnly}
         className="custom-input"
         style={{
           width:'100%',
@@ -106,7 +106,7 @@ export const Inp = ({label, v, onChange, type='text', ph, req, unit, min, step, 
           padding:unit?'8px 36px 8px 10px':'8px 10px',
           fontSize:13,
           color:'var(--text-primary)',
-          background:readOnly?'var(--bg-hover)':'var(--bg-card)',
+          background:(readOnly || disabled)?'var(--bg-hover)':'var(--bg-card)',
           outline:'none',
           transition: 'all 0.15s ease'
         }}/>
@@ -115,10 +115,10 @@ export const Inp = ({label, v, onChange, type='text', ph, req, unit, min, step, 
   </div>
 )
 
-export const Sel = ({label, v, onChange, opts, ph, req, style={}}) => (
+export const Sel = ({label, v, onChange, opts, ph, req, disabled, style={}}) => (
   <div style={{display:'flex',flexDirection:'column',gap:4,...style}}>
     {label&&<Label>{label}{req&&<span style={{color:'#ef4444',marginLeft:2}}>*</span>}</Label>}
-    <select value={v} onChange={e=>onChange(e.target.value)}
+    <select value={v} onChange={e=>onChange(e.target.value)} disabled={disabled}
       className="custom-input"
       style={{
         border:'1px solid var(--border-strong)',
@@ -126,9 +126,9 @@ export const Sel = ({label, v, onChange, opts, ph, req, style={}}) => (
         padding:'8px 10px',
         fontSize:13,
         color:'var(--text-primary)',
-        background:'var(--bg-card)',
+        background:disabled?'var(--bg-hover)':'var(--bg-card)',
         outline:'none',
-        cursor:'pointer',
+        cursor:disabled?'not-allowed':'pointer',
         transition: 'all 0.15s ease'
       }}>
       {ph&&<option value="">{ph}</option>}

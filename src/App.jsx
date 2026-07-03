@@ -167,12 +167,31 @@ function AppContent() {
   const [ints, setInts, intsOk] = useShared(SK.int, [], org?.id)
   const [mis,  setMis,  misOk]  = useShared(SK.mi,  [], org?.id)
   const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC, org?.id)
+  const [activityLog, setActivityLog, activityOk] = useShared('mm_activity_log', [], org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const isMobile = useIsMobile()
   const authenticated = !!user && !!org
-  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk)
+  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk || !activityOk)
+
+  const logEvent = (action, targetType, targetName, details) => {
+    if (!org?.id) return
+    const newEvent = {
+      id: 'evt_' + Date.now(),
+      timestamp: new Date().toISOString(),
+      user_email: user?.email || 'System',
+      username: profile?.username || 'Unknown',
+      action,
+      targetType,
+      targetName,
+      details
+    }
+    setActivityLog(prev => {
+      const arr = Array.isArray(prev) ? prev : []
+      return [newEvent, ...arr].slice(0, 100)
+    })
+  }
 
   useEffect(() => {
     const handlePopState = () => {
@@ -367,11 +386,11 @@ function AppContent() {
 
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',marginLeft: isMobile ? 0 : 220,overflowX:'hidden'}}>
-        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis}/>}
-        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
-        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
-        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite}/>}
+        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis} logEvent={logEvent} profile={profile}/>}
+        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc}/>}
+        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} logEvent={logEvent} profile={profile} pc={pc}/>}
+        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc} logEvent={logEvent} profile={profile}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent}/>}
       </div>
     </div>
   )

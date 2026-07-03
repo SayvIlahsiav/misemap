@@ -22,4 +22,9 @@ export const FT_COLOR_MAP = {
 export const DEFAULT_PC = {
   global:{ sp_multiplier:3, delivery_markup:15, packaging_cost:20, fc_alert_threshold:35 },
   category_overrides:{}, item_overrides:{},
+  permissions: {
+    allow_override_settings: true,
+    allow_edit_ingredients: true,
+    allow_edit_menu_items: true
+  }
 }

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
-  Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCcw
+  Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCcw,
+  Eye, Sparkles, RotateCcw, Check, Copy, Lock, Mail, AlertCircle
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -423,27 +424,48 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
 // ─────────────────────────────────────────────────────────
 // RAW MATERIALS PAGE
 // ─────────────────────────────────────────────────────────
-export const RMPage = ({rms, setRms}) => {
+export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
   const filtered = rms.filter(r=>(r?.name || '').toLowerCase().includes(q.toLowerCase())||(r?.category||'').toLowerCase().includes(q.toLowerCase()))
   
+  const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_ingredients !== false
+
   const save = rm => { 
+    const isEdit = rms.some(r=>r.id===rm.id)
+    const old = rms.find(r=>r.id===rm.id)
     setRms(rms.find(r=>r.id===rm.id)?rms.map(r=>r.id===rm.id?rm:r):[...rms,rm]); 
     setModal(null);
-    showToast(rms.find(r=>r.id===rm.id)?'Raw material updated!':'Raw material added!', 'success')
+    showToast(isEdit ? 'Raw material updated!' : 'Raw material added!', 'success')
+    if (logEvent) {
+      logEvent(
+        isEdit ? 'Updated' : 'Created',
+        'Raw Material',
+        rm.name,
+        isEdit 
+          ? `Changed Buy Unit from ${old.buy_unit} to ${rm.buy_unit}, Pack Cost from ₹${old.pack_cost} to ₹${rm.pack_cost}`
+          : `Added new raw material with unit cost of ₹${rmUC(rm).toFixed(2)}/${rm.usage_unit}`
+      )
+    }
   }
   const saveBulk = items => { 
     setRms(items); 
     setModal(null);
     showToast('Batch imports complete!', 'success')
+    if (logEvent) {
+      logEvent('Imported', 'Raw Materials', 'Batch Import', `Imported ${items.length} raw materials via CSV/JSON`)
+    }
   }
   const del  = async id => { 
+    const old = rms.find(r => r.id === id)
     if(await confirm('Delete this raw material?', 'It may break recipes that use it.')) {
       setRms(rms.filter(r=>r.id!==id)) 
       showToast('Raw material deleted successfully.', 'success')
+      if (logEvent && old) {
+        logEvent('Deleted', 'Raw Material', old.name, `Removed from list of raw materials`)
+      }
     }
   }
 
@@ -455,10 +477,15 @@ export const RMPage = ({rms, setRms}) => {
           <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{rms.length} ingredients · the foundation of all recipes</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
-          <Btn ch={<><Plus size={14}/>Add Raw Material</>} v='primary' onClick={()=>setModal('new')}/>
-          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')}/>
+          <Btn ch={<><Plus size={14}/>Add Raw Material</>} v='primary' disabled={!allowEdit} onClick={()=>setModal('new')}/>
+          <Btn ch='Batch Import' v='secondary' disabled={!allowEdit} onClick={()=>setModal('import')}/>
         </div>
       </div>
+      {!allowEdit && (
+        <div style={{ background: 'linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-app) 100%)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+          <span>⚠️ Workspace editing is locked for team members by the administrator.</span>
+        </div>
+      )}
       <div style={{position:'relative',marginBottom:16}}>
         <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search by name or category…'
@@ -500,12 +527,14 @@ export const RMPage = ({rms, setRms}) => {
                     <div style={{display:'flex',gap:4}}>
                       <button onClick={()=>setModal(rm)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.1s'}}
                         onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
-                        <Pencil size={12}/>
+                        {allowEdit ? <Pencil size={12}/> : <Eye size={12}/>}
                       </button>
-                      <button onClick={()=>del(rm.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.1s'}}
-                        onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
-                        <Trash2 size={12}/>
-                      </button>
+                      {allowEdit && (
+                        <button onClick={()=>del(rm.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.1s'}}
+                          onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                          <Trash2 size={12}/>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -515,7 +544,7 @@ export const RMPage = ({rms, setRms}) => {
         </div>
       )}
       {modal==='import' && <BatchImportModal rms={rms} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)}/>}
+      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -523,27 +552,47 @@ export const RMPage = ({rms, setRms}) => {
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATES PAGE
 // ─────────────────────────────────────────────────────────
-export const IntPage = ({ints, setInts, rms}) => {
+export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
   const isMobile          = useIsMobile()
   const filtered = ints.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())||(i?.category||'').toLowerCase().includes(q.toLowerCase()))
   
+  const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_ingredients !== false
+
   const save = it => { 
+    const isEdit = ints.some(i=>i.id===it.id)
     setInts(ints.find(i=>i.id===it.id)?ints.map(i=>i.id===it.id?it:i):[...ints,it]); 
     setModal(null);
-    showToast(ints.find(i=>i.id===it.id)?'Intermediate updated!':'Intermediate added!', 'success')
+    showToast(isEdit ? 'Intermediate updated!' : 'Intermediate added!', 'success')
+    if (logEvent) {
+      logEvent(
+        isEdit ? 'Updated' : 'Created',
+        'Intermediate Recipe',
+        it.name,
+        isEdit
+          ? `Modified recipe ingredients list (yield: ${it.yield_qty} ${it.yield_unit})`
+          : `Added new preparation base recipe with ${it.ingredients.length} ingredients`
+      )
+    }
   }
   const saveBulk = items => { 
     setInts(items); 
     setModal(null);
     showToast('Batch imports complete!', 'success')
+    if (logEvent) {
+      logEvent('Imported', 'Intermediates', 'Batch Import', `Imported ${items.length} intermediate recipes via CSV/JSON`)
+    }
   }
   const del  = async id => { 
+    const old = ints.find(i => i.id === id)
     if(await confirm('Delete this intermediate?', 'It may break menu items that use it.')) {
       setInts(ints.filter(i=>i.id!==id)) 
       showToast('Intermediate deleted successfully.', 'success')
+      if (logEvent && old) {
+        logEvent('Deleted', 'Intermediate Recipe', old.name, `Removed from intermediate recipes list`)
+      }
     }
   }
 
@@ -555,10 +604,15 @@ export const IntPage = ({ints, setInts, rms}) => {
           <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{ints.length} prep recipes · sauces, marinades, bases</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
-          <Btn ch={<><Plus size={14}/>Add Intermediate</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
-          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0}/>
+          <Btn ch={<><Plus size={14}/>Add Intermediate</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0 || !allowEdit}/>
+          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0 || !allowEdit}/>
         </div>
       </div>
+      {!allowEdit && (
+        <div style={{ background: 'linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-app) 100%)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+          <span>⚠️ Workspace editing is locked for team members by the administrator.</span>
+        </div>
+      )}
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating intermediates.</InfoBox></div>}
       <div style={{position:'relative',marginBottom:16}}>
         <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
@@ -586,9 +640,13 @@ export const IntPage = ({ints, setInts, rms}) => {
                     <div style={{textAlign:'right'}}><div style={{fontSize:11,color:'var(--text-light)'}}>Per {it.yield_unit}</div><div style={{fontWeight:700,fontSize:14,color:'var(--primary)'}}>{fc(uc)}</div></div>
                     <div style={{display:'flex',gap:4}}>
                       <button onClick={()=>setModal(it)} style={{padding:6,border:'none',background:'var(--bg-hover)',cursor:'pointer',color:'var(--text-muted)',borderRadius:6,display:'flex',transition:'color 0.1s'}}
-                        onMouseOver={e=>e.currentTarget.style.color='var(--text-primary)'}><Pencil size={12}/></button>
-                      <button onClick={()=>del(it.id)}   style={{padding:6,border:'none',background:'var(--bg-hover)',cursor:'pointer',color:'var(--text-muted)',borderRadius:6,display:'flex',transition:'color 0.1s'}}
-                        onMouseOver={e=>e.currentTarget.style.color='#ef4444'}><Trash2 size={12}/></button>
+                        onMouseOver={e=>e.currentTarget.style.color='var(--text-primary)'}>
+                        {allowEdit ? <Pencil size={12}/> : <Eye size={12}/>}
+                      </button>
+                      {allowEdit && (
+                        <button onClick={()=>del(it.id)}   style={{padding:6,border:'none',background:'var(--bg-hover)',cursor:'pointer',color:'var(--text-muted)',borderRadius:6,display:'flex',transition:'color 0.1s'}}
+                          onMouseOver={e=>e.currentTarget.style.color='#ef4444'}><Trash2 size={12}/></button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -605,7 +663,7 @@ export const IntPage = ({ints, setInts, rms}) => {
         </div>
       )}
       {modal==='import' && <BatchImportIntModal rms={rms} ints={ints} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints}/>}
+      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -613,7 +671,7 @@ export const IntPage = ({ints, setInts, rms}) => {
 // ─────────────────────────────────────────────────────────
 // MENU ITEMS PAGE
 // ─────────────────────────────────────────────────────────
-export const MIPage = ({mis, setMis, rms, ints, pc}) => {
+export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal]   = useState(null)
   const [q, setQ]           = useState('')
@@ -627,20 +685,40 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
     &&(!filterCat||m.category===filterCat)
   )
   
+  const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_menu_items !== false
+
   const save = mi => { 
+    const isEdit = mis.some(m=>m.id===mi.id)
     setMis(mis.find(m=>m.id===mi.id)?mis.map(m=>m.id===mi.id?mi:m):[...mis,mi]); 
     setModal(null);
-    showToast(mis.find(m=>m.id===mi.id)?'Menu item updated!':'Menu item added!', 'success')
+    showToast(isEdit ? 'Menu item updated!' : 'Menu item added!', 'success')
+    if (logEvent) {
+      logEvent(
+        isEdit ? 'Updated' : 'Created',
+        'Menu Item',
+        mi.name,
+        isEdit
+          ? `Updated recipes or selling prices overrides`
+          : `Added new item to the menu card`
+      )
+    }
   }
   const saveBulk = items => { 
     setMis(items); 
     setModal(null);
     showToast('Batch imports complete!', 'success')
+    if (logEvent) {
+      logEvent('Imported', 'Menu Items', 'Batch Import', `Imported ${items.length} menu items via CSV/JSON`)
+    }
   }
   const del  = async id => { 
+    const old = mis.find(m => m.id === id)
     if(await confirm('Delete this menu item?', 'This action cannot be undone.')) {
       setMis(mis.filter(m=>m.id!==id)) 
       showToast('Menu item deleted successfully.', 'success')
+      if (logEvent && old) {
+        logEvent('Deleted', 'Menu Item', old.name, `Removed from the menu card list`)
+      }
     }
   }
 
@@ -652,10 +730,15 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>{mis.length} items · full recipe costing and pricing</p>
         </div>
         <div style={{display:'flex',gap:10,flexDirection: isMobile ? 'column' : 'row'}}>
-          <Btn ch={<><Plus size={14}/>Add Menu Item</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0}/>
-          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0}/>
+          <Btn ch={<><Plus size={14}/>Add Menu Item</>} v='primary' onClick={()=>setModal('new')} disabled={rms.length===0 || !allowEdit}/>
+          <Btn ch='Batch Import' v='secondary' onClick={()=>setModal('import')} disabled={rms.length===0 || !allowEdit}/>
         </div>
       </div>
+      {!allowEdit && (
+        <div style={{ background: 'linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-app) 100%)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+          <span>⚠️ Workspace editing is locked for team members by the administrator.</span>
+        </div>
+      )}
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating menu items.</InfoBox></div>}
       <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',gap:10,marginBottom:16}}>
         <div style={{position:'relative',flex:1}}>
@@ -708,12 +791,14 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
                     <div style={{display:'flex',gap:4}}>
                       <button onClick={()=>setModal(mis.find(x=>x.id===m.id))} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.15s ease'}}
                         onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
-                        <Pencil size={12}/>
+                        {allowEdit ? <Pencil size={12}/> : <Eye size={12}/>}
                       </button>
-                      <button onClick={()=>del(m.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.15s ease'}}
-                        onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
-                        <Trash2 size={12}/>
-                      </button>
+                      {allowEdit && (
+                        <button onClick={()=>del(m.id)} style={{padding:5,border:'none',background:'none',cursor:'pointer',color:'var(--text-light)',borderRadius:6,display:'flex',transition:'all 0.15s ease'}}
+                          onMouseOver={e=>e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e=>e.currentTarget.style.background='none'}>
+                          <Trash2 size={12}/>
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -723,7 +808,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
         </div>
       )}
       {modal==='import' && <BatchImportMIModal rms={rms} ints={ints} mis={mis} onSave={saveBulk} onClose={()=>setModal(null)} pc={pc}/>}
-      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc}/>}
+      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -731,7 +816,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite}) => {
+export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
   const { renameOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
@@ -748,6 +833,11 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
   // Username states
   const [username, setUsername] = useState(profile?.username || '')
   const [savingUsername, setSavingUsername] = useState(false)
+
+  // Tab State
+  const [settingsTab, setSettingsTab] = useState('preferences')
+
+  const allowSettingsEdit = profile?.role === 'owner' || pc?.permissions?.allow_override_settings !== false
 
   const loadRequests = async () => {
     if (profile?.role !== 'owner' || !org?.id) return
@@ -775,6 +865,9 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
     try {
       await renameOrg(orgName)
       showToast('Organization renamed successfully!', 'success')
+      if (logEvent) {
+        logEvent('Updated', 'Organization', org.name, `Renamed organization to ${orgName}`)
+      }
     } catch (e) {
       showToast(e.message || 'Failed to rename organization', 'error')
     }
@@ -831,6 +924,8 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
 
   const handleRequestAction = async (requestId, status) => {
     try {
+      const targetReq = requests.find(r => r.id === requestId)
+      const targetEmail = targetReq?.profiles?.email || 'member'
       if (status === 'approved') {
         const { error } = await supabase
           .from('org_join_requests')
@@ -838,6 +933,9 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
           .eq('id', requestId)
         if (error) throw error
         showToast('Request approved! The member is now linked to your organization.', 'success')
+        if (logEvent) {
+          logEvent('Approved', 'Membership Request', targetEmail, `Approved request to join organization`)
+        }
       } else {
         const { error } = await supabase
           .from('org_join_requests')
@@ -845,10 +943,29 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
           .eq('id', requestId)
         if (error) throw error
         showToast('Request rejected.', 'warning')
+        if (logEvent) {
+          logEvent('Rejected', 'Membership Request', targetEmail, `Rejected request to join organization`)
+        }
       }
       loadRequests()
     } catch (e) {
       showToast(e.message || 'Failed to handle request action.', 'error')
+    }
+  }
+
+  const handleTogglePermission = (key) => {
+    const nd = {
+      ...pc,
+      permissions: {
+        ...pc.permissions,
+        [key]: !pc.permissions?.[key]
+      }
+    }
+    setPc(nd)
+    setDraft(JSON.parse(JSON.stringify(nd)))
+    showToast('Permissions updated successfully!', 'success')
+    if (logEvent) {
+      logEvent('Updated', 'Permissions', key, `Set permission '${key}' to ${nd.permissions[key]}`)
     }
   }
 
@@ -894,6 +1011,9 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
     setCascade(null)
     setFlash(true)
     showToast('All settings saved successfully!', 'success')
+    if (logEvent) {
+      logEvent('Updated', 'Settings', 'Pricing Rules', 'Modified pricing multipliers, packaging costs, or overrides')
+    }
     setTimeout(()=>setFlash(false),2200)
   }
 
@@ -902,6 +1022,9 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
       setResetting(true)
       try {
         await seedSampleData(org.id)
+        if (logEvent) {
+          logEvent('Reset', 'Database', 'Workspace Seed', 'Reset all kitchen data and seeded rich sample data')
+        }
         showToast('Demo data seeded successfully! Reloading...', 'success')
         setTimeout(() => {
           window.location.reload()
@@ -923,254 +1046,446 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
 
   return (
     <div>
-      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:24,gap: 12}}>
+      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',marginBottom:20,gap: 12}}>
         <div>
           <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Settings</h1>
-          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Global defaults → category overrides → per-item rules</p>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Manage workspace profile, member permissions, defaults, and logs</p>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:10,justifyContent: isMobile ? 'space-between' : 'flex-end'}}>
           {flash&&<span style={{fontSize:12,color:'#166534',background:'#dcfce7',padding:'4px 12px',borderRadius:8,fontWeight:600}}>Saved!</span>}
-          <Btn ch='Save All Settings' v='primary' onClick={saveGlobal}/>
+          {settingsTab === 'rules' && allowSettingsEdit && <Btn ch='Save All Settings' v='primary' onClick={saveGlobal}/>}
         </div>
       </div>
 
-      <Card title='Organization Profile'>
-        <div style={{display:'flex', flexDirection:'column', gap:16}}>
-          <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
-            <div>
-              <Label>Organization Name</Label>
-              <div style={{display:'flex', gap:8, marginTop: 4}}>
-                <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
-                  className="custom-input"
-                  style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
-                {profile?.role === 'owner' && (
-                  <Btn ch='Save' onClick={handleRenameOrg} v="secondary" sz="md" disabled={!orgName.trim() || orgName === org?.name}/>
+      {/* Tabs Selector Navigation */}
+      <div style={{
+        display:'flex',
+        gap: 6,
+        borderBottom:'1px solid var(--border-color)',
+        marginBottom: 20,
+        overflowX:'auto',
+        paddingBottom: 4
+      }}>
+        {[
+          { id: 'preferences', label: 'Profile & Team' },
+          { id: 'rules', label: 'Pricing Rules' },
+          { id: 'permissions', label: 'Permissions' },
+          { id: 'activity', label: 'Activity Logs' },
+          { id: 'danger', label: 'Danger Zone' }
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => setSettingsTab(t.id)}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              background: settingsTab === t.id ? 'var(--bg-active-tab)' : 'transparent',
+              color: settingsTab === t.id ? 'var(--primary)' : 'var(--text-light)',
+              fontWeight: 600,
+              fontSize: 13,
+              borderRadius: 8,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              borderBottom: settingsTab === t.id ? '2px solid var(--primary)' : '2px solid transparent'
+            }}
+            onMouseEnter={e => { if (settingsTab !== t.id) e.currentTarget.style.color = 'var(--text-primary)' }}
+            onMouseLeave={e => { if (settingsTab !== t.id) e.currentTarget.style.color = 'var(--text-light)' }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Preferences Tab Content */}
+      {settingsTab === 'preferences' && (
+        <>
+          <Card title='Organization Profile'>
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+              <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
+                <div>
+                  <Label>Organization Name</Label>
+                  <div style={{display:'flex', gap:8, marginTop: 4}}>
+                    <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
+                      className="custom-input"
+                      style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
+                    {profile?.role === 'owner' && (
+                      <Btn ch='Save' onClick={handleRenameOrg} v="secondary" sz="md" disabled={!orgName.trim() || orgName === org?.name}/>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label>Organization ID (Share to invite members)</Label>
+                  <div style={{display:'flex', gap:8, marginTop: 4}}>
+                    <input type='text' value={org?.id || ''} readOnly
+                      className="custom-input"
+                      style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-muted)', background:'var(--bg-hover)', outline:'none', fontFamily:'monospace',transition:'all 0.15s ease'}}/>
+                    <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
+                  </div>
+                </div>
+              </div>
+              <div style={{borderTop:'1px solid var(--border-color)', paddingTop:16, marginTop: 8}}>
+                <Label>Your Profile Username (Optional)</Label>
+                <div style={{display:'flex', gap:8, marginTop: 4, maxWidth: isMobile ? '100%' : '50%'}}>
+                  <input type='text' value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. chef_pastry"
+                    className="custom-input"
+                    style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
+                  <Btn ch={savingUsername ? 'Saving...' : 'Save'} onClick={handleSaveUsername} v="secondary" sz="md" disabled={savingUsername || username === (profile?.username || '')}/>
+                </div>
+                <p style={{fontSize:11, color:'var(--text-light)', marginTop:6}}>A unique custom username (alphanumeric & underscores, 3-20 characters) shown in the workspace sidebar.</p>
+              </div>
+              <InfoBox color='gray'>
+                Your role: <span style={{fontWeight:700, color:'var(--primary)'}}>{profile?.role?.toUpperCase()}</span>. 
+                {profile?.role === 'owner' 
+                  ? ' You can rename the organization. Other team members can join this workspace using the Organization ID above.' 
+                  : ' Only the owner can rename the organization. Contact your administrator to make changes.'}
+              </InfoBox>
+            </div>
+          </Card>
+
+          {profile?.role === 'owner' && (
+            <Card title="Invite Team Members">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <form onSubmit={async (e) => {
+                  e.preventDefault()
+                  const email = e.target.elements.inviteEmail.value.trim()
+                  if (!email) return
+                  try {
+                    await inviteMember(email)
+                    e.target.reset()
+                  } catch(err) {}
+                }} style={{ display: 'flex', gap: 10 }}>
+                  <input
+                    type="email"
+                    name="inviteEmail"
+                    placeholder="colleague@yourkitchen.com"
+                    required
+                    className="custom-input"
+                    style={{ flex: 1, border: '1px solid var(--border-strong)', borderRadius: 8, padding: '8px 10px', fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-card)', outline: 'none', transition: 'all 0.15s ease' }}
+                  />
+                  <Btn ch="Send Invite" type="submit" v="primary" sz="md" />
+                </form>
+                
+                {invitedEmails.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pending Invitations</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {invitedEmails.map(email => (
+                        <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{email}</span>
+                          <Btn ch="Revoke" onClick={() => revokeInvite(email)} v="secondary" sz="sm" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-            <div>
-              <Label>Organization ID (Share to invite members)</Label>
-              <div style={{display:'flex', gap:8, marginTop: 4}}>
-                <input type='text' value={org?.id || ''} readOnly
-                  className="custom-input"
-                  style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-muted)', background:'var(--bg-hover)', outline:'none', fontFamily:'monospace',transition:'all 0.15s ease'}}/>
-                <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
-              </div>
-            </div>
-          </div>
-          <div style={{borderTop:'1px solid var(--border-color)', paddingTop:16, marginTop: 8}}>
-            <Label>Your Profile Username (Optional)</Label>
-            <div style={{display:'flex', gap:8, marginTop: 4, maxWidth: isMobile ? '100%' : '50%'}}>
-              <input type='text' value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. chef_pastry"
-                className="custom-input"
-                style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
-              <Btn ch={savingUsername ? 'Saving...' : 'Save'} onClick={handleSaveUsername} v="secondary" sz="md" disabled={savingUsername || username === (profile?.username || '')}/>
-            </div>
-            <p style={{fontSize:11, color:'var(--text-light)', marginTop:6}}>A unique custom username (alphanumeric & underscores, 3-20 characters) shown in the workspace sidebar.</p>
-          </div>
-          <InfoBox color='gray'>
-            Your role: <span style={{fontWeight:700, color:'var(--primary)'}}>{profile?.role?.toUpperCase()}</span>. 
-            {profile?.role === 'owner' 
-              ? ' You can rename the organization. Other team members can join this workspace using the Organization ID above.' 
-              : ' Only the owner can rename the organization. Contact your administrator to make changes.'}
-          </InfoBox>
-        </div>
-      </Card>
+            </Card>
+          )}
 
-      {profile?.role === 'owner' && (
-        <Card title="Invite Team Members">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <form onSubmit={async (e) => {
-              e.preventDefault()
-              const email = e.target.elements.inviteEmail.value.trim()
-              if (!email) return
-              try {
-                await inviteMember(email)
-                e.target.reset()
-              } catch(err) {
-                // error is already handled by toast in context
-              }
-            }} style={{ display: 'flex', gap: 10 }}>
-              <input
-                type="email"
-                name="inviteEmail"
-                placeholder="colleague@yourkitchen.com"
-                required
-                className="custom-input"
-                style={{ flex: 1, border: '1px solid var(--border-strong)', borderRadius: 8, padding: '8px 10px', fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-card)', outline: 'none', transition: 'all 0.15s ease' }}
-              />
-              <Btn ch="Send Invite" type="submit" v="primary" sz="md" />
-            </form>
-            
-            {invitedEmails.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Pending Invitations</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {invitedEmails.map(email => (
-                    <div key={email} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-hover)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{email}</span>
-                      <Btn ch="Revoke" onClick={() => revokeInvite(email)} v="secondary" sz="sm" />
+          {/* Pending Membership Requests */}
+          {profile?.role === 'owner' && (
+            <Card title="Pending Membership Requests">
+              {requestsLoading ? (
+                <p style={{ fontSize: 13, color: 'var(--text-light)' }}>Loading requests...</p>
+              ) : requests.length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No pending membership requests.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {requests.map(req => (
+                    <div key={req.id} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 12, border: '1px solid var(--border-color)'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          {req.profiles?.email || 'Unknown User'}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-light)', fontFamily: 'monospace' }}>
+                          ID: {req.user_id}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Btn ch="Approve" onClick={() => handleRequestAction(req.id, 'approved')} v="primary" sz="sm" />
+                        <Btn ch="Reject" onClick={() => handleRequestAction(req.id, 'danger')} v="danger" sz="sm" />
+                      </div>
                     </div>
                   ))}
                 </div>
+              )}
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Rules Tab Content */}
+      {settingsTab === 'rules' && (
+        <>
+          {!allowSettingsEdit && (
+            <div style={{ background: 'linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-app) 100%)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <span>⚠️ Workspace defaults are locked for team members by the administrator.</span>
+            </div>
+          )}
+          <Card title='Global Defaults'>
+            <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12}}>
+              {FIELDS.map(f=>(
+                <Inp key={f.k} label={f.l} v={draft.global[f.k]} onChange={v=>updG(f.k,v)} type='number' min='0' step={f.step} unit={f.u} disabled={!allowSettingsEdit}/>
+              ))}
+              <Inp label='FC% Alert Threshold' v={draft.global.fc_alert_threshold} onChange={v=>updG('fc_alert_threshold',v)} type='number' min='0' step='1' unit='%' disabled={!allowSettingsEdit}/>
+            </div>
+            <div style={{marginTop:12}}>
+              <InfoBox color='gray'>
+                SP = Food Cost × {draft.global.sp_multiplier}× &nbsp;·&nbsp; Delivery = (SP + ₹{draft.global.packaging_cost}) × (1 + {draft.global.delivery_markup}%) &nbsp;·&nbsp; Alert fires above {draft.global.fc_alert_threshold}% FC
+              </InfoBox>
+            </div>
+          </Card>
+
+          <Card title='Category Overrides (leave blank to inherit global)'>
+            {cats.length===0?(
+              <p style={{fontSize:13,color:'var(--text-light)'}}>No categories yet — add menu items with categories to create overrides.</p>
+            ):(
+              <div style={{overflowX: 'auto'}}>
+                <div style={{minWidth: 600}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
+                    {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
+                  </div>
+                  {cats.map(cat=>(
+                    <div key={cat} style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
+                      <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{cat}</span>
+                      {FIELDS.map(f=>{
+                        const ov=draft.category_overrides[cat]?.[f.k]
+                        return (
+                          <div key={f.k} style={{position:'relative'}}>
+                            <input type='number' min='0' step={f.step} placeholder={String(draft.global[f.k])} value={ov!=null?ov:''}
+                              disabled={!allowSettingsEdit}
+                              onChange={e=>updCat(cat,f.k,e.target.value===''?null:e.target.value)}
+                              className="custom-input"
+                              style={{width:'100%',boxSizing:'border-box',border:`1px solid ${ov!=null?'#2dd4bf':'var(--border-strong)'}`,borderRadius:6,padding:'5px 28px 5px 8px',fontSize:12,outline:'none',background:ov!=null?'var(--bg-active-tab)':'var(--bg-card)',color:'var(--text-primary)',transition:'all 0.15s ease'}}/>
+                            <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Highlighted fields are active overrides. Blank = uses global default.</p>
+              </div>
+            )}
+          </Card>
+
+          <Card title='Per-Item Overrides (leave blank to inherit category or global)'>
+            {mis.length===0?(
+              <p style={{fontSize:13,color:'var(--text-light)'}}>No menu items yet.</p>
+            ):(
+              <div style={{overflowX: 'auto'}}>
+                <div style={{minWidth: 700}}>
+                  <div style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>ITEM</span>
+                    <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
+                    {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
+                  </div>
+                  {mis.map(mi=>(
+                    <div key={mi.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
+                      <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{mi.name}</span>
+                      <span style={{fontSize:12,color:'var(--text-light)'}}>{mi.category||'—'}</span>
+                      {FIELDS.map(f=>{
+                        const ov=draft.item_overrides[mi.id]?.[f.k]
+                        const catV=draft.category_overrides[mi.category]?.[f.k]
+                        const ph=catV!=null?`${catV} (cat)`:`${draft.global[f.k]} (glb)`
+                        const isPurple = ov!=null
+                        const isYellow = !isPurple && catV!=null
+                        
+                        let borderStyle = '1px solid var(--border-strong)'
+                        let bgStyle = 'var(--bg-card)'
+                        if (isPurple) {
+                          borderStyle = '1px solid #8b5cf6'
+                          bgStyle = 'rgba(139,92,246,0.06)'
+                        } else if (isYellow) {
+                          borderStyle = '1px solid #f59e0b'
+                          bgStyle = 'rgba(245,158,11,0.06)'
+                        }
+
+                        return (
+                          <div key={f.k} style={{position:'relative'}}>
+                            <input type='number' min='0' step={f.step} placeholder={ph} value={ov!=null?ov:''}
+                              disabled={!allowSettingsEdit}
+                              onChange={e=>updItem(mi.id,f.k,e.target.value===''?null:e.target.value)}
+                              className="custom-input"
+                              style={{
+                                width:'100%',
+                                boxSizing:'border-box',
+                                border: borderStyle,
+                                borderRadius:6,
+                                padding:'5px 28px 5px 8px',
+                                fontSize:12,
+                                outline:'none',
+                                background: bgStyle,
+                                color:'var(--text-primary)',
+                                transition:'all 0.15s ease'
+                              }}/>
+                            <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Yellow = category override · Purple = item override · Blank = inherits from category or global</p>
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* Permissions Tab Content */}
+      {settingsTab === 'permissions' && (
+        <Card title='Team Member Permissions'>
+          {profile?.role === 'owner' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 8 }}>
+                Configure what actions team members are allowed to perform in this workspace. Owners always have full read/write access.
+              </div>
+              {[
+                { key: 'allow_override_settings', label: 'Allow members to edit global defaults and overrides', desc: 'Allows team members to edit global multipliers, packaging costs, and category/item price overrides in Settings.' },
+                { key: 'allow_edit_ingredients', label: 'Allow members to edit Raw Materials and Intermediates', desc: 'Allows team members to add, edit, or delete kitchen ingredients and preparation recipes.' },
+                { key: 'allow_edit_menu_items', label: 'Allow members to edit Menu Costing Items', desc: 'Allows team members to add, edit, or delete items in the menu catalog.' }
+              ].map(p => {
+                const active = pc.permissions?.[p.key] !== false
+                return (
+                  <div key={p.key} className="glass-panel" style={{ padding: '16px 20px', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>{p.label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 2 }}>{p.desc}</div>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePermission(p.key)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: 8,
+                        border: active ? 'none' : '1px solid var(--border-strong)',
+                        background: active ? 'var(--primary)' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-light)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {active ? 'Allowed' : 'Restricted'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text-light)', border: '1px solid var(--border-color)', borderRadius: 16 }}>
+              <span style={{ fontSize: 24 }}>🔒</span>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-secondary)', marginTop: 12 }}>Permissions Restricted</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Workspace permissions can only be managed by the organization owner.</div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Activity Logs Tab Content */}
+      {settingsTab === 'activity' && (
+        <Card title='Workspace Activity Audit Trail'>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 8 }}>
+              Workspace audit trail showing real-time changes made by all tenants.
+            </div>
+            
+            {!activityLog || activityLog.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-light)', border: '2px dashed var(--border-color)', borderRadius: 16, fontSize: 13 }}>
+                No activities logged yet. Changes will appear here.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', paddingLeft: 20 }}>
+                {/* Timeline Line */}
+                <div style={{
+                  position: 'absolute',
+                  left: 6,
+                  top: 10,
+                  bottom: 10,
+                  width: 2,
+                  background: 'var(--border-strong)'
+                }} />
+                
+                {activityLog.map((evt, idx) => {
+                  const dt = new Date(evt.timestamp)
+                  const dateStr = dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                  const timeStr = dt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                  
+                  let actionColor = 'var(--primary)'
+                  if (evt.action === 'Deleted') actionColor = '#ef4444'
+                  if (evt.action === 'Created') actionColor = '#10b981'
+                  
+                  return (
+                    <div key={evt.id || idx} style={{
+                      position: 'relative',
+                      marginBottom: 20,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4
+                    }}>
+                      {/* Timeline Dot */}
+                      <div style={{
+                        position: 'absolute',
+                        left: -19,
+                        top: 5,
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: actionColor,
+                        border: '3px solid var(--bg-app)',
+                        boxShadow: '0 0 0 1px var(--border-strong)'
+                      }} />
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', background: 'var(--bg-hover)', padding: '2px 6px', borderRadius: 4 }}>
+                          {dateStr}, {timeStr}
+                        </span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {evt.username} ({evt.user_email})
+                        </span>
+                      </div>
+                      
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                        <span style={{ fontWeight: 700, color: actionColor, marginRight: 4 }}>{evt.action}</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{evt.targetType}</span>: {evt.targetName}
+                      </div>
+                      
+                      <div style={{ fontSize: 11, color: 'var(--text-light)', fontStyle: 'italic' }}>
+                        {evt.details}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
         </Card>
       )}
 
-      {profile?.role === 'owner' && (
-        <Card title="Workspace Data Controls (Danger Zone)">
-          <div style={{display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: 14}}>
-            <div>
-              <div style={{fontWeight:600, fontSize:13, color:'var(--text-secondary)'}}>Reset & Seed Full Demo Data</div>
-              <div style={{fontSize:11, color:'var(--text-light)', marginTop:2}}>Overwrite current database tables with a clean, fully cost-analyzed set of sample recipes, prep bases, and ingredients.</div>
+      {/* Danger Zone Tab Content */}
+      {settingsTab === 'danger' && (
+        <Card title='Workspace Data Controls (Danger Zone)'>
+          {profile?.role === 'owner' ? (
+            <div style={{display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: 14}}>
+              <div>
+                <div style={{fontWeight:600, fontSize:13, color:'var(--text-secondary)'}}>Reset & Seed Full Demo Data</div>
+                <div style={{fontSize:11, color:'var(--text-light)', marginTop:2}}>Overwrite current database tables with a clean, fully cost-analyzed set of sample recipes, prep bases, and ingredients.</div>
+              </div>
+              <Btn ch={resetting ? 'Resetting...' : 'Reset & Seed Demo Data'} onClick={handleResetDemoData} v="danger" disabled={resetting}/>
             </div>
-            <Btn ch={resetting ? 'Resetting...' : 'Reset & Seed Demo Data'} onClick={handleResetDemoData} v="danger" disabled={resetting}/>
-          </div>
-        </Card>
-      )}
-
-      {/* Pending Membership Requests (Only visible to Org Owner) */}
-      {profile?.role === 'owner' && (
-        <Card title="Pending Membership Requests">
-          {requestsLoading ? (
-            <p style={{ fontSize: 13, color: 'var(--text-light)' }}>Loading requests...</p>
-          ) : requests.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>No pending membership requests.</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {requests.map(req => (
-                <div key={req.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 16px', background: 'var(--bg-hover)', borderRadius: 12, border: '1px solid var(--border-color)'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {req.profiles?.email || 'Unknown User'}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-light)', fontFamily: 'monospace' }}>
-                      ID: {req.user_id}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Btn ch="Approve" onClick={() => handleRequestAction(req.id, 'approved')} v="primary" sz="sm" />
-                    <Btn ch="Reject" onClick={() => handleRequestAction(req.id, 'danger')} v="danger" sz="sm" />
-                  </div>
-                </div>
-              ))}
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-light)' }}>
+              Data overrides can only be performed by the workspace owner.
             </div>
           )}
         </Card>
       )}
-
-      <Card title='Global Defaults'>
-        <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12}}>
-          {FIELDS.map(f=>(
-            <Inp key={f.k} label={f.l} v={draft.global[f.k]} onChange={v=>updG(f.k,v)} type='number' min='0' step={f.step} unit={f.u}/>
-          ))}
-          <Inp label='FC% Alert Threshold' v={draft.global.fc_alert_threshold} onChange={v=>updG('fc_alert_threshold',v)} type='number' min='0' step='1' unit='%'/>
-        </div>
-        <div style={{marginTop:12}}>
-          <InfoBox color='gray'>
-            SP = Food Cost × {draft.global.sp_multiplier}× &nbsp;·&nbsp; Delivery = (SP + ₹{draft.global.packaging_cost}) × (1 + {draft.global.delivery_markup}%) &nbsp;·&nbsp; Alert fires above {draft.global.fc_alert_threshold}% FC
-          </InfoBox>
-        </div>
-      </Card>
-
-      <Card title='Category Overrides (leave blank to inherit global)'>
-        {cats.length===0?(
-          <p style={{fontSize:13,color:'var(--text-light)'}}>No categories yet — add menu items with categories to create overrides.</p>
-        ):(
-          <div style={{overflowX: 'auto'}}>
-            <div style={{minWidth: 600}}>
-              <div style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
-                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
-              </div>
-              {cats.map(cat=>(
-                <div key={cat} style={{display:'grid',gridTemplateColumns:'1.5fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
-                  <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{cat}</span>
-                  {FIELDS.map(f=>{
-                    const ov=draft.category_overrides[cat]?.[f.k]
-                    return (
-                      <div key={f.k} style={{position:'relative'}}>
-                        <input type='number' min='0' step={f.step} placeholder={String(draft.global[f.k])} value={ov!=null?ov:''}
-                          onChange={e=>updCat(cat,f.k,e.target.value===''?null:e.target.value)}
-                          className="custom-input"
-                          style={{width:'100%',boxSizing:'border-box',border:`1px solid ${ov!=null?'#2dd4bf':'var(--border-strong)'}`,borderRadius:6,padding:'5px 28px 5px 8px',fontSize:12,outline:'none',background:ov!=null?'var(--bg-active-tab)':'var(--bg-card)',color:'var(--text-primary)',transition:'all 0.15s ease'}}/>
-                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-            <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Highlighted fields are active overrides. Blank = uses global default.</p>
-          </div>
-        )}
-      </Card>
-
-      <Card title='Per-Item Overrides (leave blank to inherit category or global)'>
-        {mis.length===0?(
-          <p style={{fontSize:13,color:'var(--text-light)'}}>No menu items yet.</p>
-        ):(
-          <div style={{overflowX: 'auto'}}>
-            <div style={{minWidth: 700}}>
-              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'6px 0',borderBottom:'1px solid var(--border-color)',marginBottom:4}}>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>ITEM</span>
-                <span style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>CATEGORY</span>
-                {FIELDS.map(f=><span key={f.k} style={{fontSize:11,fontWeight:700,color:'var(--text-light)'}}>{f.l.toUpperCase()} ({f.u})</span>)}
-              </div>
-              {mis.map(mi=>(
-                <div key={mi.id} style={{display:'grid',gridTemplateColumns:'2fr 1fr repeat(3,1fr)',gap:10,padding:'10px 0',borderBottom:'1px solid var(--border-color)',alignItems:'center'}}>
-                  <span style={{fontSize:13,fontWeight:600,color:'var(--text-secondary)'}}>{mi.name}</span>
-                  <span style={{fontSize:12,color:'var(--text-light)'}}>{mi.category||'—'}</span>
-                  {FIELDS.map(f=>{
-                    const ov=draft.item_overrides[mi.id]?.[f.k]
-                    const catV=draft.category_overrides[mi.category]?.[f.k]
-                    const ph=catV!=null?`${catV} (cat)`:`${draft.global[f.k]} (glb)`
-                    const isPurple = ov!=null
-                    const isYellow = !isPurple && catV!=null
-                    
-                    let borderStyle = '1px solid var(--border-strong)'
-                    let bgStyle = 'var(--bg-card)'
-                    if (isPurple) {
-                      borderStyle = '1px solid #8b5cf6'
-                      bgStyle = 'rgba(139,92,246,0.06)'
-                    } else if (isYellow) {
-                      borderStyle = '1px solid #f59e0b'
-                      bgStyle = 'rgba(245,158,11,0.06)'
-                    }
-
-                    return (
-                      <div key={f.k} style={{position:'relative'}}>
-                        <input type='number' min='0' step={f.step} placeholder={ph} value={ov!=null?ov:''}
-                          onChange={e=>updItem(mi.id,f.k,e.target.value===''?null:e.target.value)}
-                          className="custom-input"
-                          style={{
-                            width:'100%',
-                            boxSizing:'border-box',
-                            border: borderStyle,
-                            borderRadius:6,
-                            padding:'5px 28px 5px 8px',
-                            fontSize:12,
-                            outline:'none',
-                            background: bgStyle,
-                            color:'var(--text-primary)',
-                            transition:'all 0.15s ease'
-                          }}/>
-                        <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:10,color:'var(--text-light)'}}>{f.u}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-            <p style={{fontSize:11,color:'var(--text-light)',marginTop:8}}>Yellow = category override · Purple = item override · Blank = inherits from category or global</p>
-          </div>
-        )}
-      </Card>
 
       {cascade&&<CascadeModal data={cascade} onConfirm={doSave} onClose={()=>setCascade(null)} mis={mis}/>}
     </div>

@@ -12,7 +12,7 @@ import { useUI } from '../context/UIContext.jsx'
 // ─────────────────────────────────────────────────────────
 // RAW MATERIAL MODAL
 // ─────────────────────────────────────────────────────────
-export const RMModal = ({rm, onSave, onClose}) => {
+export const RMModal = ({rm, onSave, onClose, readOnly}) => {
   const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',buy_unit:'kg',pack_cost:0,pack_qty:1,usage_unit:'g',conversion:1000,...Object.fromEntries(NF.map(f=>[f.k,0]))}
   const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
@@ -23,7 +23,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
   const buc = (f.pack_cost||0)/(f.pack_qty||1)
   const uc  = rmUC(f)
   const sameUnit = f.usage_unit===f.buy_unit
-
+ 
   const runAI = async () => {
     if (!f.name.trim()){showToast('Enter a name first.', 'warning');return}
     setAiL(true)
@@ -38,47 +38,47 @@ export const RMModal = ({rm, onSave, onClose}) => {
     setAi(null)
   }
   const valid = f.name&&(f.pack_cost||0)>0&&(f.pack_qty||0)>0
-
+ 
   return (
-    <Modal title={rm?'Edit Raw Material':'Add Raw Material'} onClose={onClose} wide>
+    <Modal title={readOnly ? 'Raw Material Details' : (rm?'Edit Raw Material':'Add Raw Material')} onClose={onClose} wide>
       <SecTitle>Basic Information</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
-          <Inp label='Ingredient Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawns, Basmati Rice, Olive Oil' req style={{flex:1}}/>
-          <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
+          <Inp label='Ingredient Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawns, Basmati Rice, Olive Oil' req disabled={readOnly} style={{flex:1}}/>
+          {!readOnly && <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>}
         </div>
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Seafood, Dairy, Vegetables' req/>
-        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Shellfish, Leafy Greens'/>
-        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Seafood, Dairy, Vegetables' req disabled={readOnly}/>
+        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Shellfish, Leafy Greens' disabled={readOnly}/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req disabled={readOnly} style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
-
+ 
       <SecTitle>Purchase Details</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',gap:12}}>
-        <Sel label='Buy Unit' v={f.buy_unit} onChange={v=>{upd('buy_unit',v);if(v===f.usage_unit)upd('conversion',1)}} opts={UNITS} req/>
-        <Inp label='Pack Cost (₹)' v={f.pack_cost} onChange={v=>upd('pack_cost',parseFloat(v)||0)} type='number' min='0' step='any' req/>
-        <Inp label='Qty per Pack' v={f.pack_qty} onChange={v=>upd('pack_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
+        <Sel label='Buy Unit' v={f.buy_unit} onChange={v=>{upd('buy_unit',v);if(v===f.usage_unit)upd('conversion',1)}} opts={UNITS} req disabled={readOnly}/>
+        <Inp label='Pack Cost (₹)' v={f.pack_cost} onChange={v=>upd('pack_cost',parseFloat(v)||0)} type='number' min='0' step='any' req disabled={readOnly}/>
+        <Inp label='Qty per Pack' v={f.pack_qty} onChange={v=>upd('pack_qty',parseFloat(v)||0)} type='number' min='0' step='any' req disabled={readOnly}/>
       </div>
       <div style={{marginTop:8}}><InfoBox color='gray'>Cost per {f.buy_unit||'buy unit'}: <strong>{fc(buc)}</strong></InfoBox></div>
-
+ 
       <SecTitle>Usage Details</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
-        <Sel label='Usage Unit (how measured in recipes)' v={f.usage_unit} onChange={v=>{upd('usage_unit',v);if(v===f.buy_unit)upd('conversion',1)}} opts={UNITS} req/>
+        <Sel label='Usage Unit (how measured in recipes)' v={f.usage_unit} onChange={v=>{upd('usage_unit',v);if(v===f.buy_unit)upd('conversion',1)}} opts={UNITS} req disabled={readOnly}/>
         <Inp
           label={sameUnit?'Conversion (same unit — 1:1)':`How many ${f.usage_unit||'usage units'} per 1 ${f.buy_unit||'buy unit'}`}
           v={f.conversion} onChange={v=>upd('conversion',parseFloat(v)||0)}
-          type='number' min='0' step='any' readOnly={sameUnit}/>
+          type='number' min='0' step='any' readOnly={sameUnit || readOnly} disabled={readOnly}/>
       </div>
       <div style={{marginTop:8}}><InfoBox color='amber'>Cost per {f.usage_unit||'usage unit'}: <strong>{fc(uc)}</strong></InfoBox></div>
-
+ 
       <SecTitle>Nutritional Values (per 1 {f.usage_unit||'usage unit'})</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:10}}>
-        {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u}/>)}
+        {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u} disabled={readOnly}/>)}
       </div>
-
+ 
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
-        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
-        <Btn ch='Save Raw Material' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+        <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
+        {!readOnly && <Btn ch='Save Raw Material' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
       </div>
     </Modal>
   )
@@ -87,7 +87,7 @@ export const RMModal = ({rm, onSave, onClose}) => {
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATE MODAL
 // ─────────────────────────────────────────────────────────
-export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
+export const IntModal = ({inter, onSave, onClose, rms, ints, readOnly}) => {
   const blank = {id:'',name:'',category:'',ingredients:[],yield_qty:1,yield_unit:'g'}
   const [f,setF] = useState(inter?{...blank,...inter}:{...blank,id:uid()})
   const isMobile  = useIsMobile()
@@ -98,19 +98,19 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
   const valid = f.name&&(f.yield_qty||0)>0&&f.ingredients.length>0
 
   return (
-    <Modal title={inter?'Edit Intermediate':'Add Intermediate'} onClose={onClose} wide>
+    <Modal title={readOnly ? 'Intermediate Details' : (inter?'Edit Intermediate':'Add Intermediate')} onClose={onClose} wide>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
-        <Inp label='Intermediate Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Red Pasta Sauce, Marinated Chicken' req/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Sauces, Marinades, Bases'/>
+        <Inp label='Intermediate Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Red Pasta Sauce, Marinated Chicken' req disabled={readOnly}/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Sauces, Marinades, Bases' disabled={readOnly}/>
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
-      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints.filter(i=>i.id!==f.id)}/>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints.filter(i=>i.id!==f.id)} readOnly={readOnly}/>
 
       <SecTitle>Yield (Output produced by this recipe)</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
-        <Inp label='Yield Quantity' v={f.yield_qty} onChange={v=>upd('yield_qty',parseFloat(v)||0)} type='number' min='0' step='any' req/>
-        <Sel label='Yield Unit' v={f.yield_unit} onChange={v=>upd('yield_unit',v)} opts={UNITS} req/>
+        <Inp label='Yield Quantity' v={f.yield_qty} onChange={v=>upd('yield_qty',parseFloat(v)||0)} type='number' min='0' step='any' req disabled={readOnly}/>
+        <Sel label='Yield Unit' v={f.yield_unit} onChange={v=>upd('yield_unit',v)} opts={UNITS} req disabled={readOnly}/>
       </div>
       {f.yield_qty>0&&f.ingredients.length>0&&(
         <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:8,marginTop:8}}>
@@ -134,8 +134,8 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
       )}
 
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
-        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
-        <Btn ch='Save Intermediate' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+        <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
+        {!readOnly && <Btn ch='Save Intermediate' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
       </div>
     </Modal>
   )
@@ -144,7 +144,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints}) => {
 // ─────────────────────────────────────────────────────────
 // MENU ITEM MODAL
 // ─────────────────────────────────────────────────────────
-export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
+export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
   const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null,takeaway_price_override:null,delivery_price_override:null}
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
@@ -196,20 +196,25 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <div style={{position:'relative'}}>
               <input type='number' value={f[ovrKey]} min='0' step='any'
+                disabled={readOnly}
                 onChange={e=>upd(ovrKey,parseFloat(e.target.value)||0)}
                 className="custom-input"
-                style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
               <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>{unit}</span>
             </div>
-            <button onClick={()=>upd(ovrKey,null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-              <RotateCcw size={11}/> Reset
-            </button>
+            {!readOnly && (
+              <button onClick={()=>upd(ovrKey,null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                <RotateCcw size={11}/> Reset
+              </button>
+            )}
           </div>
         ):(
           <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
             <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{isX?`${eff.v}×`:`${unit}${eff.v}`}</span>
             <SrcPill src={eff.src}/>
-            <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            {!readOnly && (
+              <button onClick={()=>upd(ovrKey,eff.v)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+            )}
           </div>
         )}
       </div>
@@ -220,21 +225,21 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
   const fcBorder = pct>threshold?'rgba(239,68,68,0.2)':pct>threshold*0.85?'rgba(249,115,22,0.2)':'rgba(20,184,166,0.2)'
 
   return (
-    <Modal title={item?'Edit Menu Item':'Add Menu Item'} onClose={onClose} wide>
+    <Modal title={readOnly ? 'Menu Item Details' : (item?'Edit Menu Item':'Add Menu Item')} onClose={onClose} wide>
       <SecTitle>Basic Information</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <div style={{gridColumn:'1/-1',display:'flex',gap:8,alignItems:'flex-end'}}>
-          <Inp label='Item Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawn Pasta, Mango Smoothie' req style={{flex:1}}/>
-          <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>
+          <Inp label='Item Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Prawn Pasta, Mango Smoothie' req disabled={readOnly} style={{flex:1}}/>
+          {!readOnly && <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>}
         </div>
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Mains, Beverages, Starters'/>
-        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Pasta, Smoothies, Soups'/>
-        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
+        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Mains, Beverages, Starters' disabled={readOnly}/>
+        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Pasta, Smoothies, Soups' disabled={readOnly}/>
+        <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' disabled={readOnly} style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
-      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints}/>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints} readOnly={readOnly}/>
 
       <SecTitle>Pricing Overrides</SecTitle>
       <div style={{background:'var(--bg-hover)',borderRadius:12,padding:'4px 16px'}}>
@@ -247,19 +252,22 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.selling_price_override} min='0' step='any'
+                  disabled={readOnly}
                   onChange={e=>upd('selling_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
                 <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                <RotateCcw size={11}/> Reset
-              </button>
+              {!readOnly && (
+                <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                  <RotateCcw size={11}/> Reset
+                </button>
+              )}
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
               <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_sp)}</span>
               <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              {!readOnly && <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
             </div>
           )}
         </div>
@@ -269,19 +277,22 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.takeaway_price_override} min='0' step='any'
+                  disabled={readOnly}
                   onChange={e=>upd('takeaway_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
                 <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                <RotateCcw size={11}/> Reset
-              </button>
+              {!readOnly && (
+                <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                  <RotateCcw size={11}/> Reset
+                </button>
+              )}
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
               <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_tp)}</span>
               <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              {!readOnly && <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
             </div>
           )}
         </div>
@@ -291,19 +302,22 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <div style={{position:'relative'}}>
                 <input type='number' value={f.delivery_price_override} min='0' step='any'
+                  disabled={readOnly}
                   onChange={e=>upd('delivery_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)'}}/>
+                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
                 <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
               </div>
-              <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                <RotateCcw size={11}/> Reset
-              </button>
+              {!readOnly && (
+                <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                  <RotateCcw size={11}/> Reset
+                </button>
+              )}
             </div>
           ) : (
             <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
               <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_dp)}</span>
               <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>
+              {!readOnly && <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
             </div>
           )}
         </div>
@@ -434,8 +448,8 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc}) => {
       )}
 
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
-        <Btn ch='Cancel' v='secondary' onClick={onClose}/>
-        <Btn ch='Save Menu Item' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>
+        <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
+        {!readOnly && <Btn ch='Save Menu Item' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
       </div>
     </Modal>
   )
