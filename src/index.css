@@ -1,48 +1,46 @@
 :root {
   /* Light Theme Variables */
-  --bg-app: #f5f4ef;
-  --bg-card: rgba(255, 255, 255, 0.45);
-  --bg-sidebar: rgba(255, 255, 255, 0.55);
-  --bg-hover: rgba(243, 244, 246, 0.6);
-  --bg-active-tab: rgba(13, 148, 136, 0.08);
+  --bg-app: #f8f7f4;
+  --bg-card: #ffffff;
+  --bg-sidebar: #ffffff;
+  --bg-hover: #f9fafb;
+  --bg-active-tab: #f0fdfa;
   --text-primary: #111827;
   --text-secondary: #374151;
   --text-muted: #6b7280;
   --text-light: #9ca3af;
-  --border-color: rgba(255, 255, 255, 0.4);
-  --border-strong: rgba(255, 255, 255, 0.6);
+  --border-color: #f1f1f1;
+  --border-strong: #e5e7eb;
   --primary: #0d9488;
   --primary-hover: #0f766e;
-  --primary-light: rgba(13, 148, 136, 0.1);
+  --primary-light: #ccfbf1;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
   
   --input-focus: 0 0 0 3px rgba(13, 148, 136, 0.15);
   --input-focus-border: #0d9488;
   --card-glow: 0 0 20px rgba(13, 148, 136, 0.05);
-  
-  --glass-blur: blur(12px) saturate(120%);
 }
 
 body.dark-theme {
   /* Dark Theme Variables */
-  --bg-app: #080d16;
-  --bg-card: rgba(21, 31, 50, 0.5);
-  --bg-sidebar: rgba(15, 22, 36, 0.6);
-  --bg-hover: rgba(30, 41, 59, 0.6);
-  --bg-active-tab: rgba(20, 184, 166, 0.15);
+  --bg-app: #0b0f19;
+  --bg-card: #151f32;
+  --bg-sidebar: #0f1624;
+  --bg-hover: #1e293b;
+  --bg-active-tab: #112d30;
   --text-primary: #f9fafb;
   --text-secondary: #e2e8f0;
   --text-muted: #94a3b8;
   --text-light: #64748b;
-  --border-color: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.1);
+  --border-color: #1e293b;
+  --border-strong: #334155;
   --primary: #14b8a6;
   --primary-hover: #2dd4bf;
-  --primary-light: rgba(20, 184, 166, 0.15);
+  --primary-light: #112d30;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
@@ -52,8 +50,6 @@ body.dark-theme {
   --input-focus: 0 0 0 3px rgba(20, 184, 166, 0.25);
   --input-focus-border: #14b8a6;
   --card-glow: 0 0 20px rgba(20, 184, 166, 0.1);
-  
-  --glass-blur: blur(12px) saturate(120%);
 }
 
 /* Animations */
@@ -157,32 +153,25 @@ body.dark-theme {
   box-shadow: var(--input-focus) !important;
 }
 
-/* Glassmorphism Styles */
+/* Card & Panel Styles (Reverted glassmorphism to solid theme) */
 .glass-sidebar {
   background: var(--bg-sidebar) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  -webkit-backdrop-filter: var(--glass-blur) !important;
   border-right: 1px solid var(--border-color) !important;
 }
 
 .glass-header {
   background: var(--bg-sidebar) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  -webkit-backdrop-filter: var(--glass-blur) !important;
   border-bottom: 1px solid var(--border-color) !important;
 }
 
 .glass-modal {
   background: var(--bg-card) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  -webkit-backdrop-filter: var(--glass-blur) !important;
   border: 1px solid var(--border-color) !important;
+  box-shadow: var(--shadow-xl) !important;
 }
 
 .glass-panel {
   background: var(--bg-card) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  -webkit-backdrop-filter: var(--glass-blur) !important;
   border: 1px solid var(--border-color) !important;
   box-shadow: var(--shadow-sm);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;

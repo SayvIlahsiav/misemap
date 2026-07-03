@@ -4,32 +4,34 @@ export const aiSuggest = async (name, type) => {
     ? `For the ingredient "${name}", provide accurate realistic costing and nutritional data.
 Return a JSON object matching this schema:
 {
-  "category": "string (e.g. Vegetables, Dairy, Meat, Pantry)",
-  "sub_category": "string (e.g. Fresh Vegetables, Milk & Cream, Poultry)",
-  "food_type": "Vegetarian" | "Non-Vegetarian" | "Vegan" | "Jain" | "Eggetarian",
-  "buy_unit": "string (e.g. kg, L, pack, box)",
-  "usage_unit": "string (e.g. g, ml, piece)",
-  "conversion": number (how many usage_units per 1 buy_unit, e.g. 1000 for kg to g, 1000 for L to ml, 1 for pack to piece),
-  "calories": number (calories per 1 usage_unit),
-  "carbs": number (grams of carbohydrates per 1 usage_unit),
-  "protein": number (grams of protein per 1 usage_unit),
-  "fats": number (grams of fats per 1 usage_unit),
-  "fiber": number (grams of fiber per 1 usage_unit),
-  "sugar": number (grams of sugar per 1 usage_unit),
-  "caffeine": number (milligrams of caffeine per 1 usage_unit)
+  "category": "Vegetables",
+  "sub_category": "Fresh Vegetables",
+  "food_type": "Vegetarian",
+  "buy_unit": "kg",
+  "usage_unit": "g",
+  "conversion": 1000,
+  "calories": 1.5,
+  "carbs": 0.3,
+  "protein": 0.1,
+  "fats": 0.0,
+  "fiber": 0.05,
+  "sugar": 0.02,
+  "caffeine": 0.0
 }
 Rules:
-- conversion must be a valid positive number.
-- nutritional values must be per 1 usage_unit (e.g. per 1 gram or 1 milliliter).
+- food_type must be one of: Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian
+- conversion must be a valid positive number representing how many usage_units are in 1 buy_unit.
+- nutritional values must be per 1 usage_unit.
 - Output ONLY the JSON object.`
     : `For the menu item "${name}", provide categorization and food type mapping.
 Return a JSON object matching this schema:
 {
-  "category": "string (e.g. Mains, Beverages, Starters, Desserts)",
-  "sub_category": "string (e.g. Pasta, Smoothies, Indian Breads)",
-  "food_type": "Vegetarian" | "Non-Vegetarian" | "Vegan" | "Jain" | "Eggetarian"
+  "category": "Mains",
+  "sub_category": "Pasta",
+  "food_type": "Vegetarian"
 }
 Rules:
+- food_type must be one of: Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian
 - Output ONLY the JSON object.`
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''

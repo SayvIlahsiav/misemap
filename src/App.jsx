@@ -256,31 +256,7 @@ function AppContent() {
 
   return (
     <div style={{minHeight:'100vh',background:'var(--bg-app)',display: 'flex', flexDirection: isMobile ? 'column' : 'row', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease', position: 'relative', overflow: 'hidden'}}>
-      {/* Background blobs for glassmorphism layout */}
-      <div style={{
-        position: 'absolute',
-        width: 400,
-        height: 400,
-        borderRadius: '50%',
-        background: theme === 'dark' ? 'rgba(20, 184, 166, 0.04)' : 'rgba(45, 212, 191, 0.08)',
-        filter: 'blur(100px)',
-        top: '10%',
-        left: '20%',
-        zIndex: 0,
-        pointerEvents: 'none'
-      }} />
-      <div style={{
-        position: 'absolute',
-        width: 500,
-        height: 500,
-        borderRadius: '50%',
-        background: theme === 'dark' ? 'rgba(59, 130, 246, 0.04)' : 'rgba(56, 189, 248, 0.08)',
-        filter: 'blur(120px)',
-        bottom: '10%',
-        right: '10%',
-        zIndex: 0,
-        pointerEvents: 'none'
-      }} />
+
 
       <ToastContainer />
       <ConfirmDialog />
