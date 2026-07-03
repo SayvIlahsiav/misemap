@@ -1,6 +1,14 @@
 item_name,category,sub_category,food_type,sp_multiplier_override,packaging_cost_override,delivery_markup_override,ingredient_name,ingredient_qty,ingredient_unit
-Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Chicken Breast,250,g
-Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Basmati Rice,150,g
-Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Tomato Marinara,50,g
-Healthy Breakfast Bowl,Mains,Bowls,Vegetarian,,,Whole Milk,200,ml
-Healthy Breakfast Bowl,Mains,Bowls,Vegetarian,,,Basmati Rice,100,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Prepped Chicken,150,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Basmati Rice,100,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Onions,30,g
+Chicken Pulao,Mains,Rice,Non-Vegetarian,3.5,15,10,Salt,2,g
+Garlic Butter Prawns,Mains,Seafood,Non-Vegetarian,,20,12,Prawns,200,g
+Garlic Butter Prawns,Mains,Seafood,Non-Vegetarian,,20,12,Garlic Butter,40,g
+Classic Margherita Pizza,Mains,Pizza,Vegetarian,,,Tomato Marinara,120,g
+Classic Margherita Pizza,Mains,Pizza,Vegetarian,,,Cheddar Cheese,150,g
+Espresso Macchiato,Beverages,Coffee,Vegetarian,4.5,,,Espresso Beans,14,g
+Espresso Macchiato,Beverages,Coffee,Vegetarian,4.5,,,Whole Milk,60,ml
+Espresso Macchiato,Beverages,Coffee,Vegetarian,4.5,,,Sugar,5,g
+Simple Steamed Rice,Sides,Rice,Vegan,1.5,,,Basmati Rice,150,g
+Simple Steamed Rice,Sides,Rice,Vegan,1.5,,,Salt,2,g

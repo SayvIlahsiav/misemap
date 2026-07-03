@@ -1,4 +1,13 @@
 recipe_name,category,yield_qty,yield_unit,ingredient_name,ingredient_qty,ingredient_unit
-Tomato Marinara,Sauces,1000,g,Olive Oil,20,ml
-Tomato Marinara,Sauces,1000,g,Basmati Rice,200,g
-Garlic Butter,Bases,500,g,Olive Oil,50,ml
+Tomato Marinara,Sauces,1000,g,Tomatoes,800,g
+Tomato Marinara,Sauces,1000,g,Garlic,30,g
+Tomato Marinara,Sauces,1000,g,Olive Oil,50,ml
+Tomato Marinara,Sauces,1000,g,Salt,10,g
+Tomato Marinara,Sauces,1000,g,Fresh Basil,15,g
+Garlic Butter,Bases,500,g,Butter,450,g
+Garlic Butter,Bases,500,g,Garlic,40,g
+Garlic Butter,Bases,500,g,Salt,10,g
+Prepped Chicken,Prep,1000,g,Chicken Breast,1050,g
+Prepped Chicken,Prep,1000,g,Olive Oil,30,ml
+Prepped Chicken,Prep,1000,g,Salt,10,g
+Prepped Chicken,Prep,1000,g,Black Pepper,5,g

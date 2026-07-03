@@ -18,8 +18,10 @@ export const Modal = ({ title, onClose, children, wide=false }) => (
     backdropFilter:'blur(4px)',
     animation: 'backdropFadeIn 0.2s ease-out'
   }}>
-    <div style={{
+    <div className="glass-modal" style={{
       background:'var(--bg-card)',
+      backdropFilter:'var(--glass-blur)',
+      WebkitBackdropFilter:'var(--glass-blur)',
       border:'1px solid var(--border-color)',
       borderRadius:20,
       width:'100%',

@@ -1,13 +1,36 @@
 export const aiSuggest = async (name, type) => {
   const isRM = type === 'raw'
   const prompt = isRM
-    ? `You are a food industry expert. For the ingredient "${name}", provide accurate realistic data.
-Respond ONLY with valid JSON, no markdown, no extra text:
-{"category":"","sub_category":"","food_type":"Vegetarian","buy_unit":"kg","usage_unit":"g","conversion":1000,"calories":0.0,"carbs":0.0,"protein":0.0,"fats":0.0,"fiber":0.0,"sugar":0.0,"caffeine":0.0}
-Rules: food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. conversion = how many usage_units per 1 buy_unit. All nutrition values per 1 usage_unit.`
-    : `For the menu item "${name}", respond ONLY with valid JSON, no markdown:
-{"category":"","sub_category":"","food_type":"Vegetarian"}
-food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. Use realistic restaurant categories.`
+    ? `For the ingredient "${name}", provide accurate realistic costing and nutritional data.
+Return a JSON object matching this schema:
+{
+  "category": "string (e.g. Vegetables, Dairy, Meat, Pantry)",
+  "sub_category": "string (e.g. Fresh Vegetables, Milk & Cream, Poultry)",
+  "food_type": "Vegetarian" | "Non-Vegetarian" | "Vegan" | "Jain" | "Eggetarian",
+  "buy_unit": "string (e.g. kg, L, pack, box)",
+  "usage_unit": "string (e.g. g, ml, piece)",
+  "conversion": number (how many usage_units per 1 buy_unit, e.g. 1000 for kg to g, 1000 for L to ml, 1 for pack to piece),
+  "calories": number (calories per 1 usage_unit),
+  "carbs": number (grams of carbohydrates per 1 usage_unit),
+  "protein": number (grams of protein per 1 usage_unit),
+  "fats": number (grams of fats per 1 usage_unit),
+  "fiber": number (grams of fiber per 1 usage_unit),
+  "sugar": number (grams of sugar per 1 usage_unit),
+  "caffeine": number (milligrams of caffeine per 1 usage_unit)
+}
+Rules:
+- conversion must be a valid positive number.
+- nutritional values must be per 1 usage_unit (e.g. per 1 gram or 1 milliliter).
+- Output ONLY the JSON object.`
+    : `For the menu item "${name}", provide categorization and food type mapping.
+Return a JSON object matching this schema:
+{
+  "category": "string (e.g. Mains, Beverages, Starters, Desserts)",
+  "sub_category": "string (e.g. Pasta, Smoothies, Indian Breads)",
+  "food_type": "Vegetarian" | "Non-Vegetarian" | "Vegan" | "Jain" | "Eggetarian"
+}
+Rules:
+- Output ONLY the JSON object.`
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || ''
   const res = await fetch(
@@ -17,7 +40,11 @@ food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 400 },
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 500,
+          responseMimeType: 'application/json'
+        },
       }),
     }
   )
@@ -29,5 +56,14 @@ food_type must be one of [Vegetarian, Non-Vegetarian, Vegan, Jain, Eggetarian]. 
 
   const data = await res.json()
   const txt  = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-  return JSON.parse(txt.replace(/```json\n?|```/g, '').trim())
+  
+  // Clean potential markdown wrapper formatting (fallback safety)
+  const cleanTxt = txt.replace(/```json\n?|```/g, '').trim()
+  
+  // Extract JSON block between first { and last } (fallback safety)
+  const start = cleanTxt.indexOf('{')
+  const end = cleanTxt.lastIndexOf('}')
+  const jsonStr = (start !== -1 && end !== -1 && end > start) ? cleanTxt.substring(start, end + 1) : cleanTxt
+  
+  return JSON.parse(jsonStr)
 }

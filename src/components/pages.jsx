@@ -32,7 +32,22 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
     showToast('Menu item updated successfully!', 'success')
   }
 
-  // 1. Dietary Breakdown Donut Calculations
+  // Average Cost Metrics
+  const avgFc = useMemo(() => {
+    if (pricings.length === 0) return 0
+    const total = pricings.reduce((sum, item) => sum + item.pct, 0)
+    return total / pricings.length
+  }, [pricings])
+
+  // Worst Performing Items (High Food Cost %)
+  const worstPerformers = useMemo(() => {
+    return [...pricings]
+      .filter(m => m.pct > 0)
+      .sort((a, b) => b.pct - a.pct)
+      .slice(0, 3)
+  }, [pricings])
+
+  // Dietary Breakdown Donut Calculations
   const typeCounts = useMemo(() => {
     const counts = { Vegetarian: 0, 'Non-Vegetarian': 0, Vegan: 0, Jain: 0, Eggetarian: 0 }
     mis.forEach(m => {
@@ -65,7 +80,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
     }).filter(d => d.count > 0)
   }, [typeCounts])
 
-  // 2. Top Expense Ingredients Calculations
+  // Top Expense Ingredients Calculations
   const topExpenses = useMemo(() => {
     return [...rms]
       .map(r => ({ ...r, unitCost: rmUC(r) }))
@@ -78,27 +93,20 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   }, [topExpenses])
 
   const StatCard = ({icon:Icon,label,value,sub,color,onClick}) => {
-    const [hover, setHover] = useState(false)
     return (
       <div
+        className="glass-panel hover-scale"
         onClick={onClick}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
         style={{
-          background:'var(--bg-card)',
-          border:'1px solid var(--border-color)',
           borderRadius:16,
           padding:18,
           display:'flex',
           alignItems:'center',
           gap:14,
           cursor:'pointer',
-          transform: hover ? 'translateY(-2px)' : 'none',
-          boxShadow: hover ? 'var(--shadow-md)' : 'none',
-          transition:'all 0.2s ease'
         }}
       >
-        <div style={{padding:10,borderRadius:12,background:color.bg}}><Icon size={20} style={{color:color.ico}}/></div>
+        <div style={{padding:10,borderRadius:12,background:color.bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon size={20} style={{color:color.ico}}/></div>
         <div>
           <div style={{fontSize:26,fontWeight:800,color:'var(--text-primary)',lineHeight:1}}>{value}</div>
           <div style={{fontSize:12,fontWeight:600,color:'var(--text-secondary)',marginTop:2}}>{label}</div>
@@ -200,39 +208,39 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
       
       {/* Stat Cards */}
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
-        <StatCard icon={Package}        label='Raw Materials' value={rms.length} sub='ingredients tracked'              color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
-        <StatCard icon={FlaskConical}   label='Intermediates' value={ints.length} sub='prep recipes'                   color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('intermediates')}/>
-        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='on your menu'                    color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
+        <StatCard icon={Package}        label='Total Ingredients' value={rms.length + ints.length} sub={`${rms.length} Raw / ${ints.length} Prep`} color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
+        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='Items on menu'                      color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
+        <StatCard icon={FlaskConical}   label='Avg Food Cost %' value={pricings.length > 0 ? `${avgFc.toFixed(1)}%` : '—'} sub={`Target: <${threshold}%`} color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('menu')}/>
         <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'rgba(239,68,68,0.12)',ico:'#ef4444'}:{bg:'rgba(16,185,129,0.12)',ico:'#10b981'}} onClick={() => onNavigate('menu')}/>
       </div>
 
       {/* Visual Analytics Charts Panel */}
-      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.8fr 1fr', gap:16, marginBottom:24}}>
+      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap:16, marginBottom:24}}>
         
-        {/* Chart 1: Menu Item Pricing & Margin Comparison */}
-        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20}}>
+        {/* Column 1: Menu Costs vs. Selling Price */}
+        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
           <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Menu Costs vs. Selling Price</div>
           {pricings.length === 0 ? (
-            <div style={{height: 200, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add menu items to see comparison</div>
+            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add menu items to see comparison</div>
           ) : (
-            <div style={{maxHeight: 280, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6}}>
+            <div style={{maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6, flex: 1}}>
               {pricings.map(m => {
                 const maxVal = Math.max(...pricings.map(x => x.sp), 1)
                 const costPercent = (m.food / maxVal) * 100
                 const pricePercent = (m.sp / maxVal) * 100
                 return (
-                  <div key={m.id} style={{display:'flex', alignItems:'center', gap: 12}}>
-                    <div style={{width: 110, fontSize: 11, fontWeight: 600, textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', color:'var(--text-secondary)'}}>{m.name}</div>
+                  <div key={m.id} style={{display:'flex', alignItems:'center', gap: 10}}>
+                    <div style={{width: 90, fontSize: 11, fontWeight: 600, textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', color:'var(--text-secondary)'}}>{m.name}</div>
                     <div style={{flex: 1, display:'flex', flexDirection:'column', gap: 3}}>
                       {/* Cost Bar */}
                       <div style={{display:'flex', alignItems:'center', gap: 6}}>
-                        <div style={{width: `${costPercent}%`, height: 6, background: '#ef4444', borderRadius: 3}}/>
-                        <span style={{fontSize: 9, color: 'var(--text-light)'}}>{fc(m.food)}</span>
+                        <div style={{width: `${costPercent}%`, height: 5, background: '#ef4444', borderRadius: 3}}/>
+                        <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.food)}</span>
                       </div>
                       {/* Selling Price Bar */}
                       <div style={{display:'flex', alignItems:'center', gap: 6}}>
-                        <div style={{width: `${pricePercent}%`, height: 6, background: 'var(--primary)', borderRadius: 3}}/>
-                        <span style={{fontSize: 9, color: 'var(--text-light)'}}>{fc(m.sp)}</span>
+                        <div style={{width: `${pricePercent}%`, height: 5, background: 'var(--primary)', borderRadius: 3}}/>
+                        <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.sp)}</span>
                       </div>
                     </div>
                     <div style={{width: 50, textAlign:'right'}}>
@@ -245,77 +253,17 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           )}
         </div>
 
-        {/* Chart 2: Dietary Distribution Donut Chart */}
-        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
-          <div style={{alignSelf:'flex-start', fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:10}}>Dietary Distribution</div>
-          {mis.length === 0 ? (
-            <div style={{height: 160, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>No data available</div>
-          ) : (
-            <div style={{display:'flex', alignItems:'center', gap: 14, width:'100%', justifyContent:'space-around'}}>
-              <svg width="100" height="100" viewBox="0 0 100 100" style={{flexShrink: 0}}>
-                {donutData.map((d) => (
-                  <circle
-                    key={d.type}
-                    cx="50"
-                    cy="50"
-                    r="35"
-                    fill="none"
-                    stroke={
-                      d.color === 'green' ? '#10b981' :
-                      d.color === 'red' ? '#ef4444' :
-                      d.color === 'teal' ? '#14b8a6' :
-                      d.color === 'orange' ? '#f97316' :
-                      d.color === 'yellow' ? '#eab308' : '#94a3b8'
-                    }
-                    strokeWidth="11"
-                    strokeDasharray={d.dashArray}
-                    strokeDashoffset={d.dashOffset}
-                    transform="rotate(-90 50 50)"
-                    style={{transition: 'stroke-dashoffset 0.5s ease'}}
-                  />
-                ))}
-                <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 12, fontWeight: 800, fill: 'var(--text-primary)'}}>
-                  {mis.length}
-                </text>
-                <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 6, fontWeight: 700, fill: 'var(--text-light)', textTransform: 'uppercase'}}>
-                  Items
-                </text>
-              </svg>
-
-              <div style={{display:'flex', flexDirection:'column', gap: 6}}>
-                {donutData.map(d => (
-                  <div key={d.type} style={{display:'flex', alignItems:'center', gap: 6, fontSize:10}}>
-                    <div style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: d.color === 'green' ? '#10b981' :
-                                  d.color === 'red' ? '#ef4444' :
-                                  d.color === 'teal' ? '#14b8a6' :
-                                  d.color === 'orange' ? '#f97316' :
-                                  d.color === 'yellow' ? '#eab308' : '#94a3b8'
-                    }}/>
-                    <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{d.type}</span>
-                    <span style={{color:'var(--text-light)'}}>({d.count})</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1.2fr 2fr', gap:16, marginBottom:24}}>
-        
-        {/* Chart 3: Top Expense Ingredients */}
-        <div style={{background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:16, padding:20}}>
+        {/* Column 2: Top Expense Ingredients */}
+        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
           <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Top Expense Ingredients</div>
           {rms.length === 0 ? (
-            <div style={{height: 150, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add raw materials to see analytics</div>
+            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add raw materials to see analytics</div>
           ) : (
-            <div style={{display:'flex', flexDirection:'column', gap: 12}}>
+            <div style={{display:'flex', flexDirection:'column', gap: 12, flex: 1, justifyContent:'center'}}>
               {topExpenses.map(rm => (
                 <div key={rm.id}>
                   <div style={{display:'flex', justifyContent:'space-between', fontSize: 11, marginBottom: 4}}>
-                    <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{rm.name}</span>
+                    <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 120}}>{rm.name}</span>
                     <span style={{fontWeight:700, color:'var(--primary)'}}>{fc(rm.unitCost)}/{rm.usage_unit}</span>
                   </div>
                   <div style={{width:'100%', height: 6, background:'var(--border-color)', borderRadius: 3, overflow:'hidden'}}>
@@ -327,37 +275,84 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           )}
         </div>
 
-        {/* FC Alerts Dashboard Section */}
-        {alerts.length>0 && (
-          <div style={{background:'rgba(239,68,68,0.06)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:16,padding:16}}>
-            <div style={{display:'flex',alignItems:'center',gap:8,fontWeight:700,fontSize:13,color:'#ef4444',marginBottom:12}}>
-              <AlertTriangle size={15}/> {alerts.length} item{alerts.length!==1?'s':''} exceed{alerts.length===1?'s':''} your {threshold}% FC% threshold
-            </div>
-            <div style={{maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection:'column', gap: 6, paddingRight: 4}}>
-              {alerts.map(m=>{
-                const isExpanded = expandedId === 'alert-' + m.id
-                return (
-                  <div key={m.id} style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:10,overflow:'hidden'}}>
-                    <div onClick={() => setExpandedId(isExpanded ? null : 'alert-' + m.id)} style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'center',justifyContent:'space-between',padding:'10px 14px',cursor:'pointer',gap: isMobile ? 8 : 0}}
-                      onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        {isExpanded ? <ChevronUp size={14} style={{color:'#ef4444'}}/> : <ChevronDown size={14} style={{color:'#ef4444'}}/>}
-                        <span style={{fontWeight:700,fontSize:13,color:'var(--text-primary)'}}>{m.name}</span>
-                        {m.category&&<Bdg ch={m.category} c='gray'/>}
-                      </div>
-                      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:14,fontSize:12}}>
-                        <span style={{color:'var(--text-muted)'}}>FC: <strong style={{color:'var(--text-secondary)'}}>{fc(m.food)}</strong></span>
-                        <span style={{color:'var(--text-muted)'}}>SP: <strong style={{color:'var(--text-secondary)'}}>{fc(m.sp)}</strong></span>
-                        <FCBadge pct={m.pct} threshold={threshold}/>
-                      </div>
+        {/* Column 3: Optimizations (Dietary & High FC% Items) */}
+        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
+          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom: 12}}>Optimizations & Segments</div>
+          {mis.length === 0 ? (
+            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>No data available</div>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column', gap: 14, flex: 1, justifyContent:'space-between'}}>
+              {/* Donut section */}
+              <div style={{display:'flex', alignItems:'center', gap: 10, justifyContent:'space-around'}}>
+                <svg width="64" height="64" viewBox="0 0 100 100" style={{flexShrink: 0}}>
+                  {donutData.map((d) => (
+                    <circle
+                      key={d.type}
+                      cx="50"
+                      cy="50"
+                      r="35"
+                      fill="none"
+                      stroke={
+                        d.color === 'green' ? '#10b981' :
+                        d.color === 'red' ? '#ef4444' :
+                        d.color === 'teal' ? '#14b8a6' :
+                        d.color === 'orange' ? '#f97316' :
+                        d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                      }
+                      strokeWidth="12"
+                      strokeDasharray={d.dashArray}
+                      strokeDashoffset={d.dashOffset}
+                      transform="rotate(-90 50 50)"
+                    />
+                  ))}
+                  <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 14, fontWeight: 800, fill: 'var(--text-primary)'}}>
+                    {mis.length}
+                  </text>
+                  <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 7, fontWeight: 700, fill: 'var(--text-light)', textTransform: 'uppercase'}}>
+                    Items
+                  </text>
+                </svg>
+                <div style={{display:'flex', flexDirection:'column', gap: 3, maxHeight: 60, overflowY: 'auto'}}>
+                  {donutData.map(d => (
+                    <div key={d.type} style={{display:'flex', alignItems:'center', gap: 4, fontSize: 9}}>
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: d.color === 'green' ? '#10b981' :
+                                    d.color === 'red' ? '#ef4444' :
+                                    d.color === 'teal' ? '#14b8a6' :
+                                    d.color === 'orange' ? '#f97316' :
+                                    d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                      }}/>
+                      <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{d.type} ({d.count})</span>
                     </div>
-                    {isExpanded && <DetailPanel m={m} />}
-                  </div>
-                )
-              })}
+                  ))}
+                </div>
+              </div>
+
+              {/* Worst performers cost alert section */}
+              <div style={{borderTop:'1px solid var(--border-color)', paddingTop: 10}}>
+                <div style={{fontSize:10, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom: 6}}>
+                  High Food Cost Alert (Optimize)
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap: 5}}>
+                  {worstPerformers.length === 0 ? (
+                    <div style={{fontSize: 11, color: 'var(--text-light)', textAlign:'center'}}>All item costs are normal.</div>
+                  ) : (
+                    worstPerformers.map(m => (
+                      <div key={m.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize: 11, padding:'4px 8px', borderRadius: 6, background: m.pct > threshold ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'}}>
+                        <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 110}}>{m.name}</span>
+                        <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                          <span style={{fontSize: 10, color:'var(--text-light)'}}>{fc(m.food)} cost</span>
+                          <FCBadge pct={m.pct} threshold={threshold}/>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <div style={{fontWeight:700,fontSize:13,color:'var(--text-secondary)',marginBottom:12}}>All Menu Items — Pricing Overview</div>
@@ -366,7 +361,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           Add raw materials, build recipes, and your full cost analysis appears here.
         </div>
       ):(
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
+        <div className="glass-panel" style={{borderRadius:16,overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 700}}>
             <thead>
               <tr style={{background:'var(--bg-hover)'}}>
@@ -475,7 +470,7 @@ export const RMPage = ({rms, setRms}) => {
           {rms.length===0?'No raw materials yet — add your first ingredient!':'No results found.'}
         </div>
       ):(
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
+        <div className="glass-panel" style={{borderRadius:16,overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'var(--bg-hover)'}}>
@@ -580,7 +575,7 @@ export const IntPage = ({ints, setInts, rms}) => {
           {filtered.map(it=>{
             const tc=it.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0), uc=intUC(it,rms,ints)
             return (
-              <div key={it.id} style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:14,padding:'14px 18px',boxShadow:'var(--shadow-sm)'}}>
+              <div key={it.id} className="glass-panel hover-scale" style={{borderRadius:14,padding:'14px 18px'}}>
                 <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'flex-start',justifyContent:'space-between',gap: 12}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:14,color:'var(--text-primary)'}}>{it.name}</div>
@@ -683,7 +678,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
           {mis.length===0?'No menu items yet.':'No results found.'}
         </div>
       ):(
-        <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflowX:'auto',boxShadow:'var(--shadow-sm)'}}>
+        <div className="glass-panel" style={{borderRadius:16,overflowX:'auto'}}>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'var(--bg-hover)'}}>
@@ -736,13 +731,14 @@ export const MIPage = ({mis, setMis, rms, ints, pc}) => {
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
+export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData}) => {
   const { renameOrg, refreshProfile } = useAuth()
-  const { showToast } = useUI()
+  const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
   const [flash, setFlash]     = useState(false)
   const isMobile              = useIsMobile()
+  const [resetting, setResetting] = useState(false)
 
   const [orgName, setOrgName] = useState(org?.name || '')
   const [copied, setCopied] = useState(false)
@@ -901,8 +897,25 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
     setTimeout(()=>setFlash(false),2200)
   }
 
+  const handleResetDemoData = async () => {
+    if (await confirm('Reset & Seed Demo Data?', 'This will replace all your current raw materials, intermediates, and menu items with a rich set of 15 ingredients, 3 preparation recipes, and 5 full-costed menu items. This cannot be undone.')) {
+      setResetting(true)
+      try {
+        await seedSampleData(org.id)
+        showToast('Demo data seeded successfully! Reloading...', 'success')
+        setTimeout(() => {
+          window.location.reload()
+        }, 1500)
+      } catch (e) {
+        showToast(e.message || 'Failed to seed demo data', 'error')
+      } finally {
+        setResetting(false)
+      }
+    }
+  }
+
   const Card = ({title,children}) => (
-    <div style={{background:'var(--bg-card)',border:'1px solid var(--border-color)',borderRadius:16,overflow:'hidden',marginBottom:20,boxShadow:'var(--shadow-sm)'}}>
+    <div className="glass-panel" style={{borderRadius:16,overflow:'hidden',marginBottom:20}}>
       <div style={{padding:'14px 20px',borderBottom:'1px solid var(--border-color)',fontSize:13,fontWeight:700,color:'var(--text-secondary)'}}>{title}</div>
       <div style={{padding:'16px 20px'}}>{children}</div>
     </div>
@@ -963,6 +976,18 @@ export const SettingsPage = ({pc, setPc, mis, profile, org}) => {
           </InfoBox>
         </div>
       </Card>
+
+      {profile?.role === 'owner' && (
+        <Card title="Workspace Data Controls (Danger Zone)">
+          <div style={{display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', justifyContent:'space-between', gap: 14}}>
+            <div>
+              <div style={{fontWeight:600, fontSize:13, color:'var(--text-secondary)'}}>Reset & Seed Full Demo Data</div>
+              <div style={{fontSize:11, color:'var(--text-light)', marginTop:2}}>Overwrite current database tables with a clean, fully cost-analyzed set of sample recipes, prep bases, and ingredients.</div>
+            </div>
+            <Btn ch={resetting ? 'Resetting...' : 'Reset & Seed Demo Data'} onClick={handleResetDemoData} v="danger" disabled={resetting}/>
+          </div>
+        </Card>
+      )}
 
       {/* Pending Membership Requests (Only visible to Org Owner) */}
       {profile?.role === 'owner' && (

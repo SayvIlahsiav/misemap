@@ -250,6 +250,7 @@ export const AuthProvider = ({ children }) => {
           const matchedRm = rms.find(rm => rm.name.toLowerCase() === r.ingredient_name.toLowerCase())
           return {
             id: matchedRm ? matchedRm.id : makeId(),
+            type: 'raw',
             qty: parseFloat(r.ingredient_qty) || 0,
             unit: r.ingredient_unit || 'g'
           }
@@ -282,6 +283,7 @@ export const AuthProvider = ({ children }) => {
           const matchedInt = ints.find(i => i.name.toLowerCase() === r.ingredient_name.toLowerCase())
           return {
             id: matchedRm ? matchedRm.id : (matchedInt ? matchedInt.id : makeId()),
+            type: matchedRm ? 'raw' : (matchedInt ? 'int' : 'raw'),
             qty: parseFloat(r.ingredient_qty) || 0,
             unit: r.ingredient_unit || 'g'
           }
@@ -319,84 +321,50 @@ export const AuthProvider = ({ children }) => {
     if (!user) throw new Error('You must be signed in to create an organization.')
     setLoading(true)
     try {
-      // 1. Create org
-      const { data: newOrg, error: orgError } = await supabase
-        .from('organizations')
-        .insert({ name })
-        .select()
-        .single()
-      if (orgError) throw orgError
+      const orgId = makeId()
+      const newOrg = { id: orgId, name, owner_id: user.id }
+      const { error: err1 } = await supabase.from('orgs').insert(newOrg)
+      if (err1) throw err1
+      
+      const { error: err2 } = await supabase.from('profiles').update({ org_id: orgId, role: 'owner' }).eq('id', user.id)
+      if (err2) throw err2
 
-      // 2. Set current user as Owner
-      const { data: newProf, error: profError } = await supabase
-        .from('profiles')
-        .update({ org_id: newOrg.id, role: 'owner' })
-        .eq('id', user.id)
-        .select()
-        .single()
-      if (profError) throw profError
-
-      // 3. Optionally seed demo data
       if (shouldSeed) {
         await seedSampleData(newOrg.id)
       }
-
-      setProfile(newProf)
-      setOrg(newOrg)
-      return newOrg
+      await refreshProfile()
     } catch (err) {
-      console.error('[AuthContext] Error creating organization:', err)
-      throw err
+      showToast(err.message || 'Failed to create organization', 'error')
     } finally {
       setLoading(false)
     }
   }
 
   const joinOrg = async (orgId) => {
-    if (!user) throw new Error('You must be signed in to request joining.')
+    if (!user) throw new Error('You must be signed in to join an organization.')
     setLoading(true)
     try {
-      // 1. Verify organization exists
-      const { data: targetOrg, error: orgError } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', orgId)
-        .maybeSingle()
-      
-      if (orgError) throw orgError
-      if (!targetOrg) throw new Error('Organization not found. Please verify the ID.')
-
-      // 2. Create pending join request
-      const { data: req, error: reqError } = await supabase
-        .from('org_join_requests')
-        .upsert({ org_id: targetOrg.id, user_id: user.id, status: 'pending' })
-        .select('*, organizations(name)')
-        .single()
-      if (reqError) throw reqError
-
-      setPendingRequest(req)
-      return req
+      const { data: o, error: err1 } = await supabase.from('orgs').select('id').eq('id', orgId).single()
+      if (err1 || !o) throw new Error('Organization ID not found.')
+      const { error: err2 } = await supabase.from('org_join_requests').insert({ org_id: orgId, profile_id: user.id, status: 'pending' })
+      if (err2) throw err2
+      await refreshProfile()
     } catch (err) {
-      console.error('[AuthContext] Error submitting join request:', err)
-      throw err
+      showToast(err.message || 'Failed to request joining organization', 'error')
     } finally {
       setLoading(false)
     }
   }
 
   const cancelJoinRequest = async () => {
-    if (!user || !pendingRequest) return
+    if (!user) return
     setLoading(true)
     try {
-      const { error } = await supabase
-        .from('org_join_requests')
-        .delete()
-        .eq('id', pendingRequest.id)
+      const { error } = await supabase.from('org_join_requests').delete().eq('profile_id', user.id).eq('status', 'pending')
       if (error) throw error
-      setPendingRequest(null)
+      await refreshProfile()
     } catch (err) {
-      console.error('[AuthContext] Error cancelling request:', err)
-      throw err
+      showToast(err.message || 'Failed to cancel join request', 'error')
     } finally {
       setLoading(false)
     }
@@ -432,7 +400,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user, profile, org, pendingRequest, loading,
       signIn, signUp, signInWithGoogle, signOut,
-      createOrg, joinOrg, cancelJoinRequest, renameOrg, refreshProfile
+      createOrg, joinOrg, cancelJoinRequest, renameOrg, refreshProfile, seedSampleData
     }}>
       {children}
     </AuthContext.Provider>

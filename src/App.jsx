@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon
+  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check
 } from 'lucide-react'
 import { useShared } from './hooks/useShared.js'
 import { useIsMobile } from './hooks/useIsMobile.js'
@@ -29,7 +29,17 @@ export default function App() {
 
 function ToastContainer() {
   const { toasts, removeToast } = useUI()
+  const [copiedId, setCopiedId] = useState(null)
+
   if (!toasts.length) return null
+
+  const handleCopy = (e, t) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(t.message)
+    setCopiedId(t.id)
+    setTimeout(() => setCopiedId(null), 1500)
+  }
+
   return (
     <div style={{position:'fixed',top:20,right:20,zIndex:9999,display:'flex',flexDirection:'column',gap:8,maxWidth:320,width:'100%'}}>
       {toasts.map(t => {
@@ -57,7 +67,31 @@ function ToastContainer() {
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.02)' }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}>
             <span style={{flex: 1, marginRight: 8}}>{t.message}</span>
-            <X size={14} style={{opacity: 0.8}}/>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {t.type === 'error' && (
+                <button onClick={(e) => handleCopy(e, t)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '4px 8px',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    transition: 'all 0.15s'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.35)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)' }}>
+                  {copiedId === t.id ? <Check size={11}/> : <Copy size={11}/>}
+                  {copiedId === t.id ? 'Copied' : 'Copy'}
+                </button>
+              )}
+              <X size={14} style={{opacity: 0.8}}/>
+            </div>
           </div>
         )
       })}
@@ -127,7 +161,7 @@ function ConfirmDialog() {
 }
 
 function AppContent() {
-  const { user, profile, org, loading: authLoading, signOut } = useAuth()
+  const { user, profile, org, loading: authLoading, signOut, seedSampleData } = useAuth()
   const { theme, toggleTheme } = useUI()
   const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], org?.id)
   const [ints, setInts, intsOk] = useShared(SK.int, [], org?.id)
@@ -221,13 +255,39 @@ function AppContent() {
   }
 
   return (
-    <div style={{minHeight:'100vh',background:'var(--bg-app)',display: 'flex', flexDirection: isMobile ? 'column' : 'row', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease'}}>
+    <div style={{minHeight:'100vh',background:'var(--bg-app)',display: 'flex', flexDirection: isMobile ? 'column' : 'row', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease', position: 'relative', overflow: 'hidden'}}>
+      {/* Background blobs for glassmorphism layout */}
+      <div style={{
+        position: 'absolute',
+        width: 400,
+        height: 400,
+        borderRadius: '50%',
+        background: theme === 'dark' ? 'rgba(20, 184, 166, 0.04)' : 'rgba(45, 212, 191, 0.08)',
+        filter: 'blur(100px)',
+        top: '10%',
+        left: '20%',
+        zIndex: 0,
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        width: 500,
+        height: 500,
+        borderRadius: '50%',
+        background: theme === 'dark' ? 'rgba(59, 130, 246, 0.04)' : 'rgba(56, 189, 248, 0.08)',
+        filter: 'blur(120px)',
+        bottom: '10%',
+        right: '10%',
+        zIndex: 0,
+        pointerEvents: 'none'
+      }} />
+
       <ToastContainer />
       <ConfirmDialog />
 
       {/* ── Mobile Header ── */}
       {isMobile && (
-        <div style={{height: 56, background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', position: 'sticky', top: 0, zIndex: 90}}>
+        <div className="glass-header" style={{height: 56, background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', position: 'sticky', top: 0, zIndex: 90}}>
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{background: 'none', border: 'none', padding: 6, display: 'flex', cursor: 'pointer', color: 'var(--text-secondary)'}}>
             <Menu size={20} />
           </button>
@@ -247,7 +307,7 @@ function AppContent() {
       )}
 
       {/* ── Sidebar ── */}
-      <div style={sidebarStyle}>
+      <div className="glass-sidebar" style={sidebarStyle}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'0 8px 20px',borderBottom:'1px solid var(--border-color)',marginBottom:12}}>
           <div style={{background:'var(--primary)',borderRadius:10,padding:8,display:'flex'}}>
             <ChefHat size={18} style={{color:'#fff'}}/>
@@ -332,7 +392,7 @@ function AppContent() {
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData}/>}
       </div>
     </div>
   )
