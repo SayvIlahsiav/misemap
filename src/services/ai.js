@@ -1,3 +1,70 @@
+function repairJson(str) {
+  str = str.trim()
+  if (!str) return '{}'
+  if (!str.startsWith('{')) return '{}'
+  
+  let openQuotes = false
+  let escaped = false
+  let repaired = ''
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i]
+    if (char === '"' && !escaped) {
+      openQuotes = !openQuotes
+    }
+    if (char === '\\' && openQuotes) {
+      escaped = !escaped
+    } else {
+      escaped = false
+    }
+    repaired += char
+  }
+  
+  if (openQuotes) {
+    repaired += '"'
+  }
+  
+  let braceCount = 0
+  let bracketCount = 0
+  let inString = false
+  let esc = false
+  
+  for (let i = 0; i < repaired.length; i++) {
+    const char = repaired[i]
+    if (char === '"' && !esc) {
+      inString = !inString
+    }
+    if (char === '\\' && inString) {
+      esc = !esc
+    } else {
+      esc = false
+    }
+    
+    if (!inString) {
+      if (char === '{') braceCount++
+      if (char === '}') braceCount--
+      if (char === '[') bracketCount++
+      if (char === ']') bracketCount--
+    }
+  }
+  
+  // Clean trailing commas in uncompleted JSON structures
+  if (!inString) {
+    repaired = repaired.trim().replace(/,\s*$/, '')
+  }
+  
+  while (bracketCount > 0) {
+    repaired += ']'
+    bracketCount--
+  }
+  while (braceCount > 0) {
+    repaired += '}'
+    braceCount--
+  }
+  
+  return repaired
+}
+
 export const aiSuggest = async (name, type) => {
   const isRM = type === 'raw'
   const prompt = isRM
@@ -67,5 +134,16 @@ Rules:
   const end = cleanTxt.lastIndexOf('}')
   const jsonStr = (start !== -1 && end !== -1 && end > start) ? cleanTxt.substring(start, end + 1) : cleanTxt
   
-  return JSON.parse(jsonStr)
+  try {
+    return JSON.parse(jsonStr)
+  } catch (e) {
+    try {
+      // Fallback: try to repair the truncated JSON string
+      const repaired = repairJson(jsonStr)
+      return JSON.parse(repaired)
+    } catch (err) {
+      console.error('[aiSuggest] parse and repair failed. Raw response:', txt)
+      throw new Error(`${e.message} (Raw Response: "${txt.length > 80 ? txt.substring(0, 80) + '...' : txt}")`)
+    }
+  }
 }
