@@ -30,7 +30,7 @@ export const PricingCells = ({ m }) => {
 // ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
-export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder}) => {
+export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder}) => {
   const { confirm, showToast } = useUI()
   const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
@@ -52,14 +52,26 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
     const draggedCardId = e.dataTransfer.getData('text/plain')
     if (draggedCardId === targetCardId) return
 
-    const newOrder = [...cardOrder]
-    const draggedIdx = newOrder.indexOf(draggedCardId)
-    const targetIdx = newOrder.indexOf(targetCardId)
-    
-    if (draggedIdx > -1 && targetIdx > -1) {
-      newOrder.splice(draggedIdx, 1)
-      newOrder.splice(targetIdx, 0, draggedCardId)
-      setCardOrder(newOrder)
+    if (['ingredients', 'menu', 'avg_cost', 'alerts'].includes(draggedCardId)) {
+      const newOrder = [...cardOrder]
+      const draggedIdx = newOrder.indexOf(draggedCardId)
+      const targetIdx = newOrder.indexOf(targetCardId)
+      
+      if (draggedIdx > -1 && targetIdx > -1) {
+        newOrder.splice(draggedIdx, 1)
+        newOrder.splice(targetIdx, 0, draggedCardId)
+        setCardOrder(newOrder)
+      }
+    } else if (['costs_chart', 'dietary_chart', 'expenses_chart'].includes(draggedCardId)) {
+      const newOrder = [...chartOrder]
+      const draggedIdx = newOrder.indexOf(draggedCardId)
+      const targetIdx = newOrder.indexOf(targetCardId)
+      
+      if (draggedIdx > -1 && targetIdx > -1) {
+        newOrder.splice(draggedIdx, 1)
+        newOrder.splice(targetIdx, 0, draggedCardId)
+        setChartOrder(newOrder)
+      }
     }
   }
 
@@ -251,8 +263,12 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
           <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Live overview · shared across your team</p>
         </div>
         <div style={{display:'flex', alignItems:'center', gap: 12}}>
-          {cardOrder && JSON.stringify(cardOrder) !== JSON.stringify(['ingredients', 'menu', 'avg_cost', 'alerts']) && (
-            <button onClick={() => setCardOrder(['ingredients', 'menu', 'avg_cost', 'alerts'])}
+          {((cardOrder && JSON.stringify(cardOrder) !== JSON.stringify(['ingredients', 'menu', 'avg_cost', 'alerts'])) ||
+            (chartOrder && JSON.stringify(chartOrder) !== JSON.stringify(['costs_chart', 'dietary_chart', 'expenses_chart']))) && (
+            <button onClick={() => {
+              setCardOrder(['ingredients', 'menu', 'avg_cost', 'alerts']);
+              setChartOrder(['costs_chart', 'dietary_chart', 'expenses_chart']);
+            }}
               style={{
                 background: 'transparent',
                 border: '1px solid var(--border-color)',
@@ -296,143 +312,152 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
 
       {/* Visual Analytics Charts Panel */}
       <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap:16, marginBottom:24}}>
-        
-        {/* Column 1: Menu Costs vs. Selling Price */}
-        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
-          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Menu Costs vs. Selling Price</div>
-          {pricings.length === 0 ? (
-            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add menu items to see comparison</div>
-          ) : (
-            <div style={{maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6, flex: 1}}>
-              {pricings.map(m => {
-                const maxVal = Math.max(...pricings.map(x => x.sp), 1)
-                const costPercent = (m.food / maxVal) * 100
-                const pricePercent = (m.sp / maxVal) * 100
-                return (
-                  <div key={m.id} style={{display:'flex', alignItems:'center', gap: 10}}>
-                    <div style={{width: 90, fontSize: 11, fontWeight: 600, textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', color:'var(--text-secondary)'}}>{m.name}</div>
-                    <div style={{flex: 1, display:'flex', flexDirection:'column', gap: 3}}>
-                      {/* Cost Bar */}
-                      <div style={{display:'flex', alignItems:'center', gap: 6}}>
-                        <div style={{width: `${costPercent}%`, height: 5, background: '#ef4444', borderRadius: 3}}/>
-                        <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.food)}</span>
-                      </div>
-                      {/* Selling Price Bar */}
-                      <div style={{display:'flex', alignItems:'center', gap: 6}}>
-                        <div style={{width: `${pricePercent}%`, height: 5, background: 'var(--primary)', borderRadius: 3}}/>
-                        <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.sp)}</span>
-                      </div>
-                    </div>
-                    <div style={{width: 50, textAlign:'right'}}>
-                      <FCBadge pct={m.pct} threshold={threshold}/>
-                    </div>
+        {chartOrder.map(chartId => {
+          if (chartId === 'costs_chart') {
+            return (
+              <div key="costs_chart" draggable onDragStart={(e) => handleDragStart(e, 'costs_chart')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'costs_chart')} className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column', cursor:'grab'}}>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Menu Costs vs. Selling Price</div>
+                {pricings.length === 0 ? (
+                  <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add menu items to see comparison</div>
+                ) : (
+                  <div style={{maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 6, flex: 1}}>
+                    {pricings.map(m => {
+                      const maxVal = Math.max(...pricings.map(x => x.sp), 1)
+                      const costPercent = (m.food / maxVal) * 100
+                      const pricePercent = (m.sp / maxVal) * 100
+                      return (
+                        <div key={m.id} style={{display:'flex', alignItems:'center', gap: 10}}>
+                          <div style={{width: 90, fontSize: 11, fontWeight: 600, textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', color:'var(--text-secondary)'}}>{m.name}</div>
+                          <div style={{flex: 1, display:'flex', flexDirection:'column', gap: 3}}>
+                            {/* Cost Bar */}
+                            <div style={{display:'flex', alignItems:'center', gap: 6}}>
+                              <div style={{width: `${costPercent}%`, height: 5, background: '#ef4444', borderRadius: 3}}/>
+                              <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.food)}</span>
+                            </div>
+                            {/* Selling Price Bar */}
+                            <div style={{display:'flex', alignItems:'center', gap: 6}}>
+                              <div style={{width: `${pricePercent}%`, height: 5, background: 'var(--primary)', borderRadius: 3}}/>
+                              <span style={{fontSize: 8, color: 'var(--text-light)'}}>{fc(m.sp)}</span>
+                            </div>
+                          </div>
+                          <div style={{width: 50, textAlign:'right'}}>
+                            <FCBadge pct={m.pct} threshold={threshold}/>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Column 2: Top Expense Ingredients */}
-        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
-          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Top Expense Ingredients</div>
-          {rms.length === 0 ? (
-            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add raw materials to see analytics</div>
-          ) : (
-            <div style={{display:'flex', flexDirection:'column', gap: 12, flex: 1, justifyContent:'center'}}>
-              {topExpenses.map(rm => (
-                <div key={rm.id}>
-                  <div style={{display:'flex', justifyContent:'space-between', fontSize: 11, marginBottom: 4}}>
-                    <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 120}}>{rm.name}</span>
-                    <span style={{fontWeight:700, color:'var(--primary)'}}>{fc(rm.unitCost)}/{rm.usage_unit}</span>
-                  </div>
-                  <div style={{width:'100%', height: 6, background:'var(--border-color)', borderRadius: 3, overflow:'hidden'}}>
-                    <div style={{width: `${(rm.unitCost / maxExpenseCost) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), #06b6d4)', borderRadius: 3, transition:'width 0.5s ease-in-out'}}/>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Column 3: Optimizations (Dietary & High FC% Items) */}
-        <div className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column'}}>
-          <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom: 12}}>Optimizations & Segments</div>
-          {mis.length === 0 ? (
-            <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>No data available</div>
-          ) : (
-            <div style={{display:'flex', flexDirection:'column', gap: 14, flex: 1, justifyContent:'space-between'}}>
-              {/* Donut section */}
-              <div style={{display:'flex', alignItems:'center', gap: 10, justifyContent:'space-around'}}>
-                <svg width="64" height="64" viewBox="0 0 100 100" style={{flexShrink: 0}}>
-                  {donutData.map((d) => (
-                    <circle
-                      key={d.type}
-                      cx="50"
-                      cy="50"
-                      r="35"
-                      fill="none"
-                      stroke={
-                        d.color === 'green' ? '#10b981' :
-                        d.color === 'red' ? '#ef4444' :
-                        d.color === 'teal' ? '#14b8a6' :
-                        d.color === 'orange' ? '#f97316' :
-                        d.color === 'yellow' ? '#eab308' : '#94a3b8'
-                      }
-                      strokeWidth="12"
-                      strokeDasharray={d.dashArray}
-                      strokeDashoffset={d.dashOffset}
-                      transform="rotate(-90 50 50)"
-                    />
-                  ))}
-                  <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 14, fontWeight: 800, fill: 'var(--text-primary)'}}>
-                    {mis.length}
-                  </text>
-                  <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 7, fontWeight: 700, fill: 'var(--text-light)', textTransform: 'uppercase'}}>
-                    Items
-                  </text>
-                </svg>
-                <div style={{display:'flex', flexDirection:'column', gap: 3, maxHeight: 60, overflowY: 'auto'}}>
-                  {donutData.map(d => (
-                    <div key={d.type} style={{display:'flex', alignItems:'center', gap: 4, fontSize: 9}}>
-                      <div style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: d.color === 'green' ? '#10b981' :
-                                    d.color === 'red' ? '#ef4444' :
-                                    d.color === 'teal' ? '#14b8a6' :
-                                    d.color === 'orange' ? '#f97316' :
-                                    d.color === 'yellow' ? '#eab308' : '#94a3b8'
-                      }}/>
-                      <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{d.type} ({d.count})</span>
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
-
-              {/* Worst performers cost alert section */}
-              <div style={{borderTop:'1px solid var(--border-color)', paddingTop: 10}}>
-                <div style={{fontSize:10, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom: 6}}>
-                  High Food Cost Alert (Optimize)
-                </div>
-                <div style={{display:'flex', flexDirection:'column', gap: 5}}>
-                  {worstPerformers.length === 0 ? (
-                    <div style={{fontSize: 11, color: 'var(--text-light)', textAlign:'center'}}>All item costs are normal.</div>
-                  ) : (
-                    worstPerformers.map(m => (
-                      <div key={m.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize: 11, padding:'4px 8px', borderRadius: 6, background: m.pct > threshold ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'}}>
-                        <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 110}}>{m.name}</span>
-                        <div style={{display:'flex', alignItems:'center', gap: 8}}>
-                          <span style={{fontSize: 10, color:'var(--text-light)'}}>{fc(m.food)} cost</span>
-                          <FCBadge pct={m.pct} threshold={threshold}/>
+            )
+          }
+          if (chartId === 'expenses_chart') {
+            return (
+              <div key="expenses_chart" draggable onDragStart={(e) => handleDragStart(e, 'expenses_chart')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'expenses_chart')} className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column', cursor:'grab'}}>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom:14}}>Top Expense Ingredients</div>
+                {rms.length === 0 ? (
+                  <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>Add raw materials to see analytics</div>
+                ) : (
+                  <div style={{display:'flex', flexDirection:'column', gap: 12, flex: 1, justifyContent:'center'}}>
+                    {topExpenses.map(rm => (
+                      <div key={rm.id}>
+                        <div style={{display:'flex', justifyContent:'space-between', fontSize: 11, marginBottom: 4}}>
+                          <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 120}}>{rm.name}</span>
+                          <span style={{fontWeight:700, color:'var(--primary)'}}>{fc(rm.unitCost)}/{rm.usage_unit}</span>
+                        </div>
+                        <div style={{width:'100%', height: 6, background:'var(--border-color)', borderRadius: 3, overflow:'hidden'}}>
+                          <div style={{width: `${(rm.unitCost / maxExpenseCost) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--primary), #06b6d4)', borderRadius: 3, transition:'width 0.5s ease-in-out'}}/>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            )
+          }
+          if (chartId === 'dietary_chart') {
+            return (
+              <div key="dietary_chart" draggable onDragStart={(e) => handleDragStart(e, 'dietary_chart')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'dietary_chart')} className="glass-panel" style={{borderRadius:16, padding:20, display:'flex', flexDirection:'column', cursor:'grab'}}>
+                <div style={{fontSize:13, fontWeight:700, color:'var(--text-primary)', marginBottom: 12}}>Optimizations & Segments</div>
+                {mis.length === 0 ? (
+                  <div style={{height: 220, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text-light)', fontSize:12}}>No data available</div>
+                ) : (
+                  <div style={{display:'flex', flexDirection:'column', gap: 14, flex: 1, justifyContent:'space-between'}}>
+                    {/* Donut section */}
+                    <div style={{display:'flex', alignItems:'center', gap: 10, justifyContent:'space-around'}}>
+                      <svg width="64" height="64" viewBox="0 0 100 100" style={{flexShrink: 0}}>
+                        {donutData.map((d) => (
+                          <circle
+                            key={d.type}
+                            cx="50"
+                            cy="50"
+                            r="35"
+                            fill="none"
+                            stroke={
+                              d.color === 'green' ? '#10b981' :
+                              d.color === 'red' ? '#ef4444' :
+                              d.color === 'teal' ? '#14b8a6' :
+                              d.color === 'orange' ? '#f97316' :
+                              d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                            }
+                            strokeWidth="12"
+                            strokeDasharray={d.dashArray}
+                            strokeDashoffset={d.dashOffset}
+                            transform="rotate(-90 50 50)"
+                          />
+                        ))}
+                        <text x="50" y="47" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 14, fontWeight: 800, fill: 'var(--text-primary)'}}>
+                          {mis.length}
+                        </text>
+                        <text x="50" y="58" textAnchor="middle" dominantBaseline="middle" style={{fontSize: 7, fontWeight: 700, fill: 'var(--text-light)', textTransform: 'uppercase'}}>
+                          Items
+                        </text>
+                      </svg>
+                      <div style={{display:'flex', flexDirection:'column', gap: 3, maxHeight: 60, overflowY: 'auto'}}>
+                        {donutData.map(d => (
+                          <div key={d.type} style={{display:'flex', alignItems:'center', gap: 4, fontSize: 9}}>
+                            <div style={{
+                              width: 6, height: 6, borderRadius: '50%',
+                              background: d.color === 'green' ? '#10b981' :
+                                          d.color === 'red' ? '#ef4444' :
+                                          d.color === 'teal' ? '#14b8a6' :
+                                          d.color === 'orange' ? '#f97316' :
+                                          d.color === 'yellow' ? '#eab308' : '#94a3b8'
+                            }}/>
+                            <span style={{fontWeight:600, color:'var(--text-secondary)'}}>{d.type} ({d.count})</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Worst performers cost alert section */}
+                    <div style={{borderTop:'1px solid var(--border-color)', paddingTop: 10}}>
+                      <div style={{fontSize:10, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom: 6}}>
+                        High Food Cost Alert (Optimize)
+                      </div>
+                      <div style={{display:'flex', flexDirection:'column', gap: 5}}>
+                        {worstPerformers.length === 0 ? (
+                          <div style={{fontSize: 11, color: 'var(--text-light)', textAlign:'center'}}>All item costs are normal.</div>
+                        ) : (
+                          worstPerformers.map(m => (
+                            <div key={m.id} style={{display:'flex', alignItems:'center', justifyContent:'space-between', fontSize: 11, padding:'4px 8px', borderRadius: 6, background: m.pct > threshold ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'}}>
+                              <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth: 110}}>{m.name}</span>
+                              <div style={{display:'flex', alignItems:'center', gap: 8}}>
+                                <span style={{fontSize: 10, color:'var(--text-light)'}}>{fc(m.food)} cost</span>
+                                <FCBadge pct={m.pct} threshold={threshold}/>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+          return null
+        })}
       </div>
 
       <div style={{fontWeight:700,fontSize:13,color:'var(--text-secondary)',marginBottom:12}}>All Menu Items — Pricing Overview</div>
@@ -1116,7 +1141,7 @@ const Card = ({title,children}) => (
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
+export const SettingsPage = ({pc, setPc, mis, rms, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
   const { updateOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
