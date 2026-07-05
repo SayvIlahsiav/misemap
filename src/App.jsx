@@ -170,13 +170,24 @@ function AppContent() {
   const [activityLog, setActivityLog, activityOk] = useShared('mm_activity_log', [], org?.id)
   const [cardOrder, setCardOrder, orderOk] = useShared(SK.layout, ['ingredients', 'menu', 'avg_cost', 'alerts'], org?.id)
   const [chartOrder, setChartOrder, chartOk] = useShared(SK.layout_charts, ['costs_chart', 'dietary_chart', 'expenses_chart'], org?.id)
+  const [customCats, setCustomCats, customCatsOk] = useShared(SK.custom_cats, { raw: [], int: [], menu: [], raw_sub: [], menu_sub: [] }, org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false)
 
   const isMobile = useIsMobile()
   const authenticated = !!user && !!org
-  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk || !activityOk || !orderOk || !chartOk)
+  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk || !activityOk || !orderOk || !chartOk || !customCatsOk)
+
+  const addCustomCat = (type, name) => {
+    if (!name || !name.trim()) return
+    const cleaned = name.trim()
+    setCustomCats(prev => {
+      const list = prev?.[type] || []
+      if (list.includes(cleaned)) return prev
+      return { ...(prev || {}), [type]: [...list, cleaned].sort() }
+    })
+  }
 
   const logEvent = (action, targetType, targetName, details) => {
     if (!org?.id) return
@@ -488,10 +499,10 @@ function AppContent() {
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',marginLeft: isMobile ? 0 : 220,overflowX:'hidden'}}>
         {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis} logEvent={logEvent} profile={profile} cardOrder={cardOrder} setCardOrder={setCardOrder} chartOrder={chartOrder} setChartOrder={setChartOrder}/>}
-        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc}/>}
-        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} logEvent={logEvent} profile={profile} pc={pc}/>}
-        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc} logEvent={logEvent} profile={profile}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent}/>}
+        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat}/>}
+        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat}/>}
+        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc} logEvent={logEvent} profile={profile} customCats={customCats} addCustomCat={addCustomCat}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent} customCats={customCats} setCustomCats={setCustomCats}/>}
       </div>
     </div>
   )

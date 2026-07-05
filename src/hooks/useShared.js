@@ -46,7 +46,9 @@ export const useShared = (key, def, orgId) => {
           if (raw) {
             let parsed = JSON.parse(raw)
             if (Array.isArray(parsed)) {
-              parsed = parsed.flat(5).filter(item => item && typeof item === 'object' && !Array.isArray(item))
+              if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null && !Array.isArray(parsed[0])) {
+                parsed = parsed.flat(5).filter(item => item && typeof item === 'object' && !Array.isArray(item))
+              }
             }
             setD(parsed)
             localStorage.setItem(storageKey, JSON.stringify(parsed))

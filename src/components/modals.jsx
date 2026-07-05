@@ -12,7 +12,7 @@ import { useUI } from '../context/UIContext.jsx'
 // ─────────────────────────────────────────────────────────
 // RAW MATERIAL MODAL
 // ─────────────────────────────────────────────────────────
-export const RMModal = ({rm, onSave, onClose, rms = [], readOnly}) => {
+export const RMModal = ({rm, onSave, onClose, rms = [], customCats = {}, addCustomCat, readOnly}) => {
   const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',buy_unit:'kg',pack_cost:0,pack_qty:1,usage_unit:'g',conversion:1000,...Object.fromEntries(NF.map(f=>[f.k,0]))}
   const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
@@ -20,8 +20,14 @@ export const RMModal = ({rm, onSave, onClose, rms = [], readOnly}) => {
   const [aiL,setAiL]= useState(false)
   const isMobile    = useIsMobile()
   
-  const cats = [...new Set((rms || []).map(r => r.category).filter(Boolean))].sort()
-  const subCats = [...new Set((rms || []).map(r => r.sub_category).filter(Boolean))].sort()
+  const cats = [...new Set([
+    ...(rms || []).map(r => r.category),
+    ...(customCats?.raw || [])
+  ].filter(Boolean))].sort()
+  const subCats = [...new Set([
+    ...(rms || []).map(r => r.sub_category),
+    ...(customCats?.raw_sub || [])
+  ].filter(Boolean))].sort()
 
   const upd = (k,v) => setF(p=>({...p,[k]:v}))
   const buc = (f.pack_cost||0)/(f.pack_qty||1)
@@ -82,7 +88,11 @@ export const RMModal = ({rm, onSave, onClose, rms = [], readOnly}) => {
  
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
         <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
-        {!readOnly && <Btn ch='Save Raw Material' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
+        {!readOnly && <Btn ch='Save Raw Material' v='primary' onClick={() => {
+          if (f.category) addCustomCat?.('raw', f.category);
+          if (f.sub_category) addCustomCat?.('raw_sub', f.sub_category);
+          onSave(f);
+        }} disabled={!valid}/>}
       </div>
     </Modal>
   )
@@ -91,7 +101,7 @@ export const RMModal = ({rm, onSave, onClose, rms = [], readOnly}) => {
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATE MODAL
 // ─────────────────────────────────────────────────────────
-export const IntModal = ({inter, onSave, onClose, rms, ints, readOnly}) => {
+export const IntModal = ({inter, onSave, onClose, rms, ints, customCats = {}, addCustomCat, readOnly}) => {
   const blank = {id:'',name:'',category:'',ingredients:[],yield_qty:1,yield_unit:'g'}
   const [f,setF] = useState(inter?{...blank,...inter}:{...blank,id:uid()})
   const isMobile  = useIsMobile()
@@ -99,7 +109,11 @@ export const IntModal = ({inter, onSave, onClose, rms, ints, readOnly}) => {
   const totalCost = f.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0)
   const uc  = totalCost/(f.yield_qty||1)
   const nut = intNut({...f},rms,ints)
-  const cats = [...new Set((ints || []).map(i => i.category).filter(Boolean))].sort()
+  
+  const cats = [...new Set([
+    ...(ints || []).map(i => i.category),
+    ...(customCats?.int || [])
+  ].filter(Boolean))].sort()
 
   const valid = f.name&&(f.yield_qty||0)>0&&f.ingredients.length>0
 
@@ -141,7 +155,10 @@ export const IntModal = ({inter, onSave, onClose, rms, ints, readOnly}) => {
 
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
         <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
-        {!readOnly && <Btn ch='Save Intermediate' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
+        {!readOnly && <Btn ch='Save Intermediate' v='primary' onClick={() => {
+          if (f.category) addCustomCat?.('int', f.category);
+          onSave(f);
+        }} disabled={!valid}/>}
       </div>
     </Modal>
   )
@@ -455,7 +472,11 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
 
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
         <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
-        {!readOnly && <Btn ch='Save Menu Item' v='primary' onClick={()=>onSave(f)} disabled={!valid}/>}
+        {!readOnly && <Btn ch='Save Menu Item' v='primary' onClick={() => {
+          if (f.category) addCustomCat?.('menu', f.category);
+          if (f.sub_category) addCustomCat?.('menu_sub', f.sub_category);
+          onSave(f);
+        }} disabled={!valid}/>}
       </div>
     </Modal>
   )

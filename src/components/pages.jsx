@@ -526,7 +526,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
 // ─────────────────────────────────────────────────────────
 // RAW MATERIALS PAGE
 // ─────────────────────────────────────────────────────────
-export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
+export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCustomCat}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
@@ -687,7 +687,7 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
         </div>
       )}
       {modal==='import' && <BatchImportModal rms={rms} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -695,7 +695,7 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATES PAGE
 // ─────────────────────────────────────────────────────────
-export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
+export const IntPage = ({ints, setInts, rms, logEvent, profile, pc, customCats, addCustomCat}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
@@ -847,7 +847,7 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
         </div>
       )}
       {modal==='import' && <BatchImportIntModal rms={rms} ints={ints} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -855,7 +855,7 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
 // ─────────────────────────────────────────────────────────
 // MENU ITEMS PAGE
 // ─────────────────────────────────────────────────────────
-export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
+export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile, customCats, addCustomCat}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal]   = useState(null)
   const [q, setQ]           = useState('')
@@ -1038,42 +1038,74 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
         </div>
       )}
       {modal==='import' && <BatchImportMIModal rms={rms} ints={ints} mis={mis} onSave={saveBulk} onClose={()=>setModal(null)} pc={pc}/>}
-      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} mis={mis} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} mis={mis} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
     </div>
   )
 }
 
-const CategoryList = ({items, setItems, logType, logEvent, isMobile}) => {
+const CategoryList = ({items, setItems, type, customCats, setCustomCats, logType, logEvent, isMobile, isSub}) => {
   const { showToast, confirm } = useUI()
   const [editingCat, setEditingCat] = useState(null)
   const [editVal, setEditVal] = useState('')
+  const [newCatVal, setNewCatVal] = useState('')
 
   const catCounts = useMemo(() => {
     const counts = {}
+    const customList = customCats?.[type] || []
+    customList.forEach(c => {
+      counts[c] = 0
+    })
+
     items.forEach(it => {
-      const c = it.category || 'Uncategorized'
+      const c = (isSub ? it.sub_category : it.category) || 'Uncategorized'
       counts[c] = (counts[c] || 0) + 1
     })
     return Object.entries(counts).sort((a,b) => a[0].localeCompare(b[0]))
-  }, [items])
+  }, [items, customCats, type, isSub])
+
+  const handleAddNewCat = () => {
+    const cleaned = newCatVal.trim()
+    if (!cleaned) return
+
+    setCustomCats(prev => {
+      const currentList = prev?.[type] || []
+      if (currentList.includes(cleaned)) return prev
+      return { ...prev, [type]: [...currentList, cleaned].sort() }
+    })
+    setNewCatVal('')
+    showToast(`Added custom ${isSub ? 'sub-category' : 'category'} "${cleaned}"`, 'success')
+  }
 
   const handleRename = (oldName, newName) => {
     if (!newName.trim() || oldName === newName) {
       setEditingCat(null)
       return
     }
+    const cleanNew = newName.trim()
+
     const updated = items.map(it => {
-      const currentCat = it.category || 'Uncategorized'
+      const currentCat = (isSub ? it.sub_category : it.category) || 'Uncategorized'
       if (currentCat === oldName) {
-        return { ...it, category: newName.trim() }
+        return { ...it, [isSub ? 'sub_category' : 'category']: cleanNew }
       }
       return it
     })
     setItems(updated)
+
+    setCustomCats(prev => {
+      const currentList = prev?.[type] || []
+      const updatedList = currentList.map(c => c === oldName ? cleanNew : c)
+      if (!updatedList.includes(cleanNew) && cleanNew !== 'Uncategorized') {
+        updatedList.push(cleanNew)
+      }
+      const filteredList = updatedList.filter(c => c !== oldName)
+      return { ...prev, [type]: [...new Set(filteredList)].sort() }
+    })
+
     setEditingCat(null)
-    showToast(`Renamed category to "${newName}"`, 'success')
+    showToast(`Renamed to "${cleanNew}"`, 'success')
     if (logEvent) {
-      logEvent('Updated', `${logType} Category`, oldName, `Renamed category to "${newName}"`)
+      logEvent('Updated', `${logType} Category`, oldName, `Renamed category to "${cleanNew}"`)
     }
   }
 
@@ -1081,13 +1113,20 @@ const CategoryList = ({items, setItems, logType, logEvent, isMobile}) => {
     if (catName === 'Uncategorized') return
     if (await confirm(`Delete category "${catName}"?`, `This will reset the category for all associated items.`)) {
       const updated = items.map(it => {
-        const currentCat = it.category || 'Uncategorized'
+        const currentCat = (isSub ? it.sub_category : it.category) || 'Uncategorized'
         if (currentCat === catName) {
-          return { ...it, category: '' }
+          return { ...it, [isSub ? 'sub_category' : 'category']: '' }
         }
         return it
       })
       setItems(updated)
+
+      setCustomCats(prev => {
+        const currentList = prev?.[type] || []
+        const filteredList = currentList.filter(c => c !== catName)
+        return { ...prev, [type]: filteredList }
+      })
+
       showToast(`Deleted category "${catName}"`, 'warning')
       if (logEvent) {
         logEvent('Deleted', `${logType} Category`, catName, `Cleared category for all matching items`)
@@ -1095,12 +1134,44 @@ const CategoryList = ({items, setItems, logType, logEvent, isMobile}) => {
     }
   }
 
-  if (catCounts.length === 0) {
-    return <div style={{fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0'}}>No categories found.</div>
-  }
-
   return (
     <div style={{display:'flex', flexDirection:'column', gap:10}}>
+      {/* Add New Category form */}
+      <div style={{display:'flex', gap:6, marginBottom: 8}}>
+        <input
+          type="text"
+          value={newCatVal}
+          onChange={e => setNewCatVal(e.target.value)}
+          placeholder={isSub ? "Add sub-category..." : "Add category..."}
+          className="custom-input"
+          style={{
+            flex: 1,
+            border: '1px solid var(--border-strong)',
+            borderRadius: 6,
+            padding: '6px 10px',
+            fontSize: 12,
+            outline: 'none',
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)'
+          }}
+        />
+        <button
+          onClick={handleAddNewCat}
+          style={{
+            background: 'var(--primary)',
+            border: 'none',
+            borderRadius: 6,
+            padding: '6px 12px',
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          Add
+        </button>
+      </div>
       {catCounts.map(([cat, count]) => (
         <div key={cat} style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, fontSize:13, background:'var(--bg-hover)', padding:'8px 12px', borderRadius:8, border:'1px solid var(--border-color)'}}>
           {editingCat === cat ? (
@@ -1141,7 +1212,7 @@ const Card = ({title,children}) => (
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
+export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent, customCats, setCustomCats}) => {
   const { updateOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
@@ -1809,29 +1880,43 @@ export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, s
 
       {/* Category Manager Tab Content */}
       {settingsTab === 'categories' && (
-        <Card title='Workspace Category Manager'>
+        <Card title='Workspace Category & Sub-Category Manager'>
           <div style={{display:'flex', flexDirection:'column', gap:20}}>
             <p style={{fontSize:13, color:'var(--text-light)', margin:0}}>
               View and manage categories used across raw materials, intermediates, and menu items. Renaming a category updates all associated items.
             </p>
             
-            <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:16}}>
+            <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap:16, marginBottom:20}}>
               {/* Raw Materials Categories */}
               <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
                 <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Raw Material Categories</div>
-                <CategoryList type="raw" items={rms} setItems={setRms} logType="Raw Material" logEvent={logEvent} isMobile={isMobile} />
+                <CategoryList type="raw" items={rms} setItems={setRms} customCats={customCats} setCustomCats={setCustomCats} logType="Raw Material" logEvent={logEvent} isMobile={isMobile} isSub={false} />
               </div>
               
               {/* Intermediates Categories */}
               <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
                 <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Prep Recipe Categories</div>
-                <CategoryList type="int" items={ints} setItems={setInts} logType="Intermediate Recipe" logEvent={logEvent} isMobile={isMobile} />
+                <CategoryList type="int" items={ints} setItems={setInts} customCats={customCats} setCustomCats={setCustomCats} logType="Intermediate Recipe" logEvent={logEvent} isMobile={isMobile} isSub={false} />
               </div>
               
               {/* Menu Item Categories */}
               <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
                 <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Menu Item Categories</div>
-                <CategoryList type="menu" items={mis} setItems={setMis} logType="Menu Item" logEvent={logEvent} isMobile={isMobile} />
+                <CategoryList type="menu" items={mis} setItems={setMis} customCats={customCats} setCustomCats={setCustomCats} logType="Menu Item" logEvent={logEvent} isMobile={isMobile} isSub={false} />
+              </div>
+            </div>
+
+            <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
+              {/* Raw Materials Sub-Categories */}
+              <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
+                <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Raw Material Sub-Categories</div>
+                <CategoryList type="raw_sub" items={rms} setItems={setRms} customCats={customCats} setCustomCats={setCustomCats} logType="Raw Material Sub-Category" logEvent={logEvent} isMobile={isMobile} isSub={true} />
+              </div>
+              
+              {/* Menu Item Sub-Categories */}
+              <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
+                <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Menu Item Sub-Categories</div>
+                <CategoryList type="menu_sub" items={mis} setItems={setMis} customCats={customCats} setCustomCats={setCustomCats} logType="Menu Item Sub-Category" logEvent={logEvent} isMobile={isMobile} isSub={true} />
               </div>
             </div>
           </div>
