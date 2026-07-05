@@ -1141,7 +1141,7 @@ const Card = ({title,children}) => (
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
-export const SettingsPage = ({pc, setPc, mis, rms, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
+export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
   const { updateOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))

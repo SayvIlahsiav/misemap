@@ -491,7 +491,7 @@ function AppContent() {
         {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc}/>}
         {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} logEvent={logEvent} profile={profile} pc={pc}/>}
         {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc} logEvent={logEvent} profile={profile}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent}/>}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent}/>}
       </div>
     </div>
   )
