@@ -42,7 +42,7 @@ erDiagram
     org_join_requests {
         uuid id PK
         uuid org_id FK "references organizations"
-        uuid user_id FK "references auth.users"
+        uuid user_id FK "references profiles"
         text status "'pending' | 'approved' | 'rejected'"
         timestamp created_at
     }
@@ -81,7 +81,7 @@ Stores user profile information mapping individuals to organizations and roles.
 Maintains user requests to join specific organizations.
 *   `id` (`uuid`, Primary Key): Generated via `gen_random_uuid()`.
 *   `org_id` (`uuid`, Foreign Key): References `organizations(id)` (on delete cascade).
-*   `user_id` (`uuid`, Foreign Key): References `auth.users(id)` (on delete cascade).
+*   `user_id` (`uuid`, Foreign Key): References `profiles(id)` (on delete cascade).
 *   `status` (`text`): Default `'pending'`.
 *   `created_at` (`timestamptz`): Defaults to `now()`.
 *   *Constraint*: Unique combination of `user_id` and `org_id` to prevent duplicate requests.
@@ -222,5 +222,23 @@ grant all privileges on table public.kv_store to postgres, authenticated, anon, 
 
 -- Grant usage on sequences
 grant usage, select on all sequences in schema public to postgres, authenticated, anon, service_role;
+```
+
+---
+
+## 6. Table Relationship Tweaks (Supabase Join Queries)
+
+To perform nested API selections (e.g. `.select('*, profiles(email)')` inside `org_join_requests`), the `org_join_requests.user_id` column must explicitly target the public `profiles(id)` table instead of `auth.users(id)`. This exposes the foreign key relationship to the PostgREST cache:
+
+```sql
+-- Re-map foreign key constraint
+alter table public.org_join_requests 
+  drop constraint if exists org_join_requests_user_id_fkey;
+
+alter table public.org_join_requests 
+  add constraint org_join_requests_user_id_fkey 
+  foreign key (user_id) 
+  references public.profiles(id) 
+  on delete cascade;
 ```
 

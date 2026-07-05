@@ -66,18 +66,23 @@ export const useShared = (key, def, orgId) => {
   // Save to both localStorage and Supabase
   const save = useCallback(async nd => {
     if (!orgId) return
-    setD(nd)
-    const raw = JSON.stringify(nd)
-    try {
-      localStorage.setItem(storageKey, raw)
-    } catch (e) {
-      console.warn('[useShared] localStorage save error', key, e)
-    }
-    try {
-      await storage.set(key, raw, orgId)
-    } catch (e) {
-      console.warn('[useShared] Supabase save error', key, e)
-    }
+    setD(prev => {
+      const resolved = typeof nd === 'function' ? nd(prev) : nd
+      const raw = JSON.stringify(resolved)
+      
+      // Save asynchronously without blocking the local state update
+      try {
+        localStorage.setItem(storageKey, raw)
+      } catch (e) {
+        console.warn('[useShared] localStorage save error', key, e)
+      }
+      
+      storage.set(key, raw, orgId).catch(e => {
+        console.warn('[useShared] Supabase save error', key, e)
+      })
+      
+      return resolved
+    })
   }, [key, orgId, storageKey])
 
   return [d, save, ok]
