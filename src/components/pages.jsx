@@ -531,18 +531,18 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
             className="custom-input"
             style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
         </div>
-        <div style={{display:'flex',gap:10}}>
+        <div style={{display:'flex',gap:10,width: isMobile ? '100%' : 'auto'}}>
           {cats.length>0&&(
             <select value={filterCat} onChange={e=>setFCat(e.target.value)}
               className="custom-input"
-              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+              style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '150px',cursor:'pointer',transition:'all 0.15s ease'}}>
               <option value=''>All categories</option>
               {cats.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           )}
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
             className="custom-input"
-            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+            style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '150px',cursor:'pointer',transition:'all 0.15s ease'}}>
             <option value='name-asc'>Name (A-Z)</option>
             <option value='name-desc'>Name (Z-A)</option>
             <option value='cost-asc'>Cost: Low to High</option>
@@ -700,18 +700,18 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
             className="custom-input"
             style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
         </div>
-        <div style={{display:'flex',gap:10}}>
+        <div style={{display:'flex',gap:10,width: isMobile ? '100%' : 'auto'}}>
           {cats.length>0&&(
             <select value={filterCat} onChange={e=>setFCat(e.target.value)}
               className="custom-input"
-              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+              style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '150px',cursor:'pointer',transition:'all 0.15s ease'}}>
               <option value=''>All categories</option>
               {cats.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           )}
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
             className="custom-input"
-            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+            style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '150px',cursor:'pointer',transition:'all 0.15s ease'}}>
             <option value='name-asc'>Name (A-Z)</option>
             <option value='name-desc'>Name (Z-A)</option>
             <option value='cost-asc'>Cost: Low to High</option>
@@ -871,18 +871,18 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
             className="custom-input"
             style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
         </div>
-        <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+        <div style={{display:'flex',gap:10,width: isMobile ? '100%' : 'auto'}}>
           {cats.length>0&&(
             <select value={filterCat} onChange={e=>setFCat(e.target.value)}
               className="custom-input"
-              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+              style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '140px',cursor:'pointer',transition:'all 0.15s ease'}}>
               <option value=''>All categories</option>
               {cats.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           )}
           <select value={filterType} onChange={e=>setFType(e.target.value)}
             className="custom-input"
-            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterType?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+            style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterType?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '140px',cursor:'pointer',transition:'all 0.15s ease'}}>
             <option value=''>All Types</option>
             <option value='Vegetarian'>Vegetarian</option>
             <option value='Non-Vegetarian'>Non-Vegetarian</option>
@@ -892,7 +892,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
           </select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
             className="custom-input"
-            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+            style={{flex: isMobile ? 1 : 'none', border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: isMobile ? '0' : '140px',cursor:'pointer',transition:'all 0.15s ease'}}>
             <option value='name-asc'>Name (A-Z)</option>
             <option value='name-desc'>Name (Z-A)</option>
             <option value='price-asc'>Price: Low to High</option>
@@ -972,6 +972,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
 
   const [orgName, setOrgName] = useState(org?.name || '')
   const [logoUrl, setLogoUrl] = useState(org?.logo_url || '')
+  const [savingOrg, setSavingOrg] = useState(false)
   const [copied, setCopied] = useState(false)
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(false)
@@ -1008,6 +1009,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
   }, [org?.id, profile?.role])
 
   const handleUpdateOrg = async () => {
+    setSavingOrg(true)
     try {
       await updateOrg(orgName, logoUrl)
       showToast('Organization profile updated successfully!', 'success')
@@ -1016,6 +1018,8 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
       }
     } catch (e) {
       showToast(e.message || 'Failed to update organization profile', 'error')
+    } finally {
+      setSavingOrg(false)
     }
   }
 
@@ -1275,7 +1279,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
                 </div>
                 {profile?.role === 'owner' && (
                   <div style={{display:'flex', alignItems:'flex-end', justifyContent: 'flex-end'}}>
-                    <Btn ch='Save Profile Changes' onClick={handleUpdateOrg} v="primary" sz="md" disabled={(!orgName.trim() || orgName === org?.name) && logoUrl === (org?.logo_url || '')} style={{width: isMobile ? '100%' : 'auto', justifyContent: 'center'}}/>
+                    <Btn ch={savingOrg ? 'Saving...' : 'Save Profile Changes'} onClick={handleUpdateOrg} v="primary" sz="md" disabled={savingOrg || ((!orgName.trim() || orgName === org?.name) && logoUrl === (org?.logo_url || ''))} style={{width: isMobile ? '100%' : 'auto', justifyContent: 'center'}}/>
                   </div>
                 )}
               </div>
