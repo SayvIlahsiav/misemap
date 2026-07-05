@@ -278,7 +278,7 @@ function AppContent() {
   }
 
   return (
-    <div style={{minHeight:'100vh',background:'var(--bg-app)',display: 'flex', flexDirection: isMobile ? 'column' : 'row', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease', position: 'relative', overflow: 'hidden'}}>
+    <div style={{minHeight:'100vh',background:'var(--bg-app)',display: 'flex', flexDirection: isMobile ? 'column' : 'row', color: 'var(--text-primary)', transition: 'background-color 0.3s ease, color 0.3s ease', position: 'relative', overflow: isMobile ? 'visible' : 'hidden'}}>
 
 
       <ToastContainer />

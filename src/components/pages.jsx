@@ -14,6 +14,20 @@ import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
 
 // ─────────────────────────────────────────────────────────
+// PRICING CELLS COMMON COMPONENT
+// ─────────────────────────────────────────────────────────
+export const PricingCells = ({ m }) => {
+  return (
+    <>
+      <td style={{padding:'10px 14px',fontWeight:800,color:'var(--text-primary)'}}>{fc(m.food)}</td>
+      <td style={{padding:'10px 14px',fontWeight:800,color:'var(--primary)'}}>{fc(m.sp)}</td>
+      <td style={{padding:'10px 14px',fontWeight:500,color:'var(--text-muted)'}}>{fc(m.tp)}</td>
+      <td style={{padding:'10px 14px',fontWeight:500,color:'var(--text-muted)'}}>{fc(m.dp)}</td>
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
 export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
@@ -386,10 +400,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
                       </td>
                       <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{m.category||'—'}</td>
                       <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                      <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.food)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-primary)'}}>{fc(m.sp)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
-                      <td style={{padding:'10px 14px',fontWeight:700,color:'var(--primary)'}}>{fc(m.dp)}</td>
+                      <PricingCells m={m} />
                       <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                     </tr>
                     {isExpanded && (
@@ -780,10 +791,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
                   </td>
                   <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{m.category||'—'}</td>
                   <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--text-primary)'}}>{fc(m.food)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--primary)'}}>{fc(m.sp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:500,color:'var(--text-muted)'}}>{fc(m.dp)}</td>
+                  <PricingCells m={m} />
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.takeaway_fc_pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.delivery_fc_pct} threshold={threshold}/></td>
