@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check
+  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check, User
 } from 'lucide-react'
 import { useShared } from './hooks/useShared.js'
 import { useIsMobile } from './hooks/useIsMobile.js'
@@ -170,6 +170,7 @@ function AppContent() {
   const [activityLog, setActivityLog, activityOk] = useShared('mm_activity_log', [], org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(false)
 
   const isMobile = useIsMobile()
   const authenticated = !!user && !!org
@@ -285,8 +286,21 @@ function AppContent() {
 
       {/* ── Mobile Header ── */}
       {isMobile && (
-        <div className="glass-header" style={{height: 56, background: 'var(--bg-sidebar)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', position: 'sticky', top: 0, zIndex: 90}}>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} style={{background: 'none', border: 'none', padding: 6, display: 'flex', cursor: 'pointer', color: 'var(--text-secondary)'}}>
+        <div className="glass-header" style={{
+          height: 56,
+          background: theme === 'dark' ? 'rgba(15, 22, 36, 0.75)' : 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottom: '1px solid var(--border-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 16px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 90
+        }}>
+          <button onClick={() => { setMobileMenuOpen(!mobileMenuOpen); setMobileProfileOpen(false); }} style={{background: 'none', border: 'none', padding: 6, display: 'flex', cursor: 'pointer', color: 'var(--text-secondary)'}}>
             <Menu size={20} />
           </button>
           <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
@@ -295,13 +309,28 @@ function AppContent() {
             </div>
             <span style={{fontWeight: 800, fontSize: 13, color: 'var(--text-primary)'}}>MiseMap</span>
           </div>
-          <div style={{width: 32}} />
+          <button onClick={() => { setMobileProfileOpen(!mobileProfileOpen); setMobileMenuOpen(false); }}
+            style={{
+              background: 'var(--bg-hover)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '50%',
+              width: 32,
+              height: 32,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              padding: 0
+            }}>
+            <User size={16} />
+          </button>
         </div>
       )}
 
-      {/* ── Overlay for Mobile Sidebar ── */}
-      {isMobile && mobileMenuOpen && (
-        <div onClick={() => setMobileMenuOpen(false)} style={{position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', animation: 'backdropFadeIn 0.2s ease-out'}} />
+      {/* ── Overlay for Mobile Sidebar / Profile ── */}
+      {isMobile && (mobileMenuOpen || mobileProfileOpen) && (
+        <div onClick={() => { setMobileMenuOpen(false); setMobileProfileOpen(false); }} style={{position: 'fixed', inset: 0, zIndex: 95, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', animation: 'backdropFadeIn 0.2s ease-out'}} />
       )}
 
       {/* ── Sidebar ── */}
@@ -366,23 +395,85 @@ function AppContent() {
             </span>
           </div>
 
-          <button onClick={signOut}
-            style={{
-              display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'8px 10px',borderRadius:8,
-              border: theme === 'dark' ? '1px solid #4a1d1d' : '1px solid #fee2e2',
-              background: theme === 'dark' ? '#2d1515' : '#fef2f2',
-              color: theme === 'dark' ? '#ef4444' : '#b91c1c',
-              cursor:'pointer',fontSize:12,fontWeight:600,transition:'all 0.15s',width:'100%'
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? '#3d1c1c' : '#fde2e2' }}
-            onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? '#2d1515' : '#fef2f2' }}>
-            <LogOut size={13}/>
-            Sign Out
-          </button>
+          {!isMobile && (
+            <button onClick={signOut}
+              style={{
+                display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'8px 10px',borderRadius:8,
+                border: theme === 'dark' ? '1px solid #4a1d1d' : '1px solid #fee2e2',
+                background: theme === 'dark' ? '#2d1515' : '#fef2f2',
+                color: theme === 'dark' ? '#ef4444' : '#b91c1c',
+                cursor:'pointer',fontSize:12,fontWeight:600,transition:'all 0.15s',width:'100%'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? '#3d1c1c' : '#fde2e2' }}
+              onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? '#2d1515' : '#fef2f2' }}>
+              <LogOut size={13}/>
+              Sign Out
+            </button>
+          )}
           
           <div style={{fontSize:9,color:'var(--text-light)',textAlign:'center'}}>MiseMap · Shared via Supabase</div>
         </div>
       </div>
+
+      {/* ── Mobile Profile Drawer ── */}
+      {isMobile && (
+        <div className="glass-sidebar" style={{
+          position: 'fixed',
+          top: 0,
+          right: mobileProfileOpen ? 0 : -260,
+          width: 240,
+          height: '100vh',
+          zIndex: 100,
+          background: 'var(--bg-sidebar)',
+          borderLeft: '1px solid var(--border-color)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '20px 16px',
+          transition: 'right 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          boxShadow: mobileProfileOpen ? 'var(--shadow-xl)' : 'none',
+        }}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',paddingBottom:16,borderBottom:'1px solid var(--border-color)',marginBottom:16}}>
+            <span style={{fontWeight:800,fontSize:14,color:'var(--text-primary)'}}>Account Profile</span>
+            <button onClick={() => setMobileProfileOpen(false)} style={{background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', display: 'flex', padding: 4}}>
+              <X size={16} />
+            </button>
+          </div>
+
+          <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:10, padding:'16px 12px', background:'var(--bg-hover)', borderRadius:12, border:'1px solid var(--border-color)', marginBottom:20}}>
+            <div style={{width:48, height:48, borderRadius:'50%', background:'var(--primary)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, fontWeight:700}}>
+              {(profile?.username || user?.email || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div style={{textAlign:'center', width:'100%'}}>
+              <div style={{fontWeight:700, fontSize:14, color:'var(--text-primary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{profile?.username || 'User'}</div>
+              <div style={{fontSize:12, color:'var(--text-muted)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap'}}>{user?.email}</div>
+            </div>
+            <div style={{display:'flex', flexDirection:'column', gap:4, width:'100%', borderTop:'1px solid var(--border-color)', paddingTop:12, marginTop:4, fontSize:11}}>
+              <div style={{display:'flex', justifyContent:'space-between'}}>
+                <span style={{color:'var(--text-light)'}}>Organization:</span>
+                <span style={{fontWeight:600, color:'var(--text-secondary)', textOverflow:'ellipsis', overflow:'hidden', whiteSpace:'nowrap', maxWidth:120}}>{org?.name}</span>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between'}}>
+                <span style={{color:'var(--text-light)'}}>Role:</span>
+                <span style={{fontWeight:700, color:'var(--primary)', textTransform:'uppercase'}}>{profile?.role}</span>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={() => { setMobileProfileOpen(false); signOut(); }}
+            style={{
+              display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'10px',borderRadius:10,
+              border: theme === 'dark' ? '1px solid #4a1d1d' : '1px solid #fee2e2',
+              background: theme === 'dark' ? '#2d1515' : '#fef2f2',
+              color: theme === 'dark' ? '#ef4444' : '#b91c1c',
+              cursor:'pointer',fontSize:13,fontWeight:600,transition:'all 0.15s',width:'100%',marginTop:'auto'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = theme === 'dark' ? '#3d1c1c' : '#fde2e2' }}
+            onMouseLeave={e => { e.currentTarget.style.background = theme === 'dark' ? '#2d1515' : '#fef2f2' }}>
+            <LogOut size={14}/>
+            Sign Out
+          </button>
+        </div>
+      )}
 
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',marginLeft: isMobile ? 0 : 220,overflowX:'hidden'}}>

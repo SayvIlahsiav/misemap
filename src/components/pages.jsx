@@ -208,7 +208,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
       </div>
       
       {/* Stat Cards */}
-      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
+      <div style={{display:'grid',gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
         <StatCard icon={Package}        label='Total Ingredients' value={rms.length + ints.length} sub={`${rms.length} Raw / ${ints.length} Prep`} color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
         <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='Items on menu'                      color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
         <StatCard icon={FlaskConical}   label='Avg Food Cost %' value={pricings.length > 0 ? `${avgFc.toFixed(1)}%` : '—'} sub={`Target: <${threshold}%`} color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('menu')}/>
@@ -780,10 +780,10 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
                   </td>
                   <td style={{padding:'10px 14px',color:'var(--text-muted)'}}>{m.category||'—'}</td>
                   <td style={{padding:'10px 14px'}}><Bdg ch={m.food_type||'—'} c={FT_COLOR_MAP[m.food_type]||'gray'}/></td>
-                  <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.food)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--text-primary)'}}>{fc(m.sp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:700,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
-                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--primary)'}}>{fc(m.dp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--text-primary)'}}>{fc(m.food)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:800,color:'var(--primary)'}}>{fc(m.sp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:600,color:'var(--text-secondary)'}}>{fc(m.tp)}</td>
+                  <td style={{padding:'10px 14px',fontWeight:500,color:'var(--text-muted)'}}>{fc(m.dp)}</td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.takeaway_fc_pct} threshold={threshold}/></td>
                   <td style={{padding:'10px 14px'}}><FCBadge pct={m.delivery_fc_pct} threshold={threshold}/></td>
