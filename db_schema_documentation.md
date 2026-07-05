@@ -176,3 +176,51 @@ where
     tc.constraint_type = 'FOREIGN KEY' 
     and tc.table_schema = 'public';
 ```
+
+---
+
+## 4. Security Definer Helper Functions
+
+To bypass Row Level Security (RLS) recursion issues when checking user organization settings on the `profiles` table itself, the following helper functions are implemented:
+
+```sql
+create or replace function get_my_org_id()
+returns uuid
+language sql
+security definer
+stable
+as $$
+  select org_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function get_my_role()
+returns text
+language sql
+security definer
+stable
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+```
+
+---
+
+## 5. API Permission Grants
+
+Explicit permissions are granted to standard Supabase API roles (`authenticated` and `anon`) on the schema and tables to prevent `403 (Forbidden)` or `permission denied` API errors:
+
+```sql
+-- Grant usage on public schema
+grant usage on schema public to postgres, authenticated, anon, service_role;
+
+-- Grant permissions on tables
+grant all privileges on table public.organizations to postgres, authenticated, anon, service_role;
+grant all privileges on table public.profiles to postgres, authenticated, anon, service_role;
+grant all privileges on table public.org_join_requests to postgres, authenticated, anon, service_role;
+grant all privileges on table public.org_invitations to postgres, authenticated, anon, service_role;
+grant all privileges on table public.kv_store to postgres, authenticated, anon, service_role;
+
+-- Grant usage on sequences
+grant usage, select on all sequences in schema public to postgres, authenticated, anon, service_role;
+```
+
