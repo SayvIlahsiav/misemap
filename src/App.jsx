@@ -182,7 +182,7 @@ function AppContent() {
       id: 'evt_' + Date.now(),
       timestamp: new Date().toISOString(),
       user_email: user?.email || 'System',
-      username: profile?.username || 'Unknown',
+      username: profile?.username || '',
       action,
       targetType,
       targetName,

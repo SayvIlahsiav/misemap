@@ -958,6 +958,13 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
   )
 }
 
+const Card = ({title,children}) => (
+  <div className="glass-panel" style={{borderRadius:16,overflow:'hidden',marginBottom:20}}>
+    <div style={{padding:'14px 20px',borderBottom:'1px solid var(--border-color)',fontSize:13,fontWeight:700,color:'var(--text-secondary)'}}>{title}</div>
+    <div style={{padding:'16px 20px'}}>{children}</div>
+  </div>
+)
+
 // ─────────────────────────────────────────────────────────
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
@@ -1014,7 +1021,11 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
       await updateOrg(orgName, logoUrl)
       showToast('Organization profile updated successfully!', 'success')
       if (logEvent) {
-        logEvent('Updated', 'Organization', org.name, `Updated organization profile`)
+        const changes = []
+        if (orgName !== org?.name) changes.push(`name to "${orgName}"`)
+        if (logoUrl !== org?.logo_url) changes.push(`logo`)
+        const details = changes.length > 0 ? `Updated organization ${changes.join(' and ')}` : `Updated organization profile`
+        logEvent('Updated', 'Organization', orgName, details)
       }
     } catch (e) {
       showToast(e.message || 'Failed to update organization profile', 'error')
@@ -1187,12 +1198,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
     }
   }
 
-  const Card = ({title,children}) => (
-    <div className="glass-panel" style={{borderRadius:16,overflow:'hidden',marginBottom:20}}>
-      <div style={{padding:'14px 20px',borderBottom:'1px solid var(--border-color)',fontSize:13,fontWeight:700,color:'var(--text-secondary)'}}>{title}</div>
-      <div style={{padding:'16px 20px'}}>{children}</div>
-    </div>
-  )
+
 
   return (
     <div>
@@ -1606,7 +1612,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
                           {dateStr}, {timeStr}
                         </span>
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                          {evt.username} ({evt.user_email})
+                          {evt.username && evt.username !== 'Unknown' ? `${evt.username} (${evt.user_email})` : evt.user_email}
                         </span>
                       </div>
                       
