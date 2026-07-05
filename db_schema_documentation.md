@@ -19,6 +19,7 @@ erDiagram
         uuid org_id FK "references organizations"
         text role "owner | member"
         text email "user email address"
+        text username "user nickname/display name"
         timestamp updated_at
     }
     
@@ -50,6 +51,7 @@ erDiagram
         uuid id PK
         uuid org_id FK "references organizations"
         text email "invited user email"
+        text role "target role in org"
         timestamp created_at
     }
 ```
@@ -72,6 +74,7 @@ Stores user profile information mapping individuals to organizations and roles.
 *   `org_id` (`uuid`, Foreign Key): References `organizations(id)` (on delete set null).
 *   `role` (`text`): User role inside the tenant, defaults to `'member'` (`'owner'` or `'member'`).
 *   `email` (`text`, Optional): Email address of the user.
+*   `username` (`text`, Optional): Display name of the user.
 *   `updated_at` (`timestamptz`): Defaults to `now()`.
 
 ### `org_join_requests`
@@ -88,6 +91,7 @@ Tracks invites sent by organization owners to potential members.
 *   `id` (`uuid`, Primary Key): Generated via `gen_random_uuid()`.
 *   `org_id` (`uuid`, Foreign Key): References `organizations(id)` (on delete cascade).
 *   `email` (`text`, NOT NULL): Target email invited.
+*   `role` (`text`, NOT NULL): Defaults to `'member'`.
 *   `created_at` (`timestamptz`): Defaults to `now()`.
 *   *Constraint*: Unique combination of `org_id` and `email`.
 
