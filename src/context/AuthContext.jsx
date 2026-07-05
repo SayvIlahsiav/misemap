@@ -345,6 +345,7 @@ export const AuthProvider = ({ children }) => {
       await refreshProfile()
     } catch (err) {
       showToast(err.message || 'Failed to create organization', 'error')
+      throw err
     } finally {
       setLoading(false)
     }
@@ -361,6 +362,7 @@ export const AuthProvider = ({ children }) => {
       await refreshProfile()
     } catch (err) {
       showToast(err.message || 'Failed to request joining organization', 'error')
+      throw err
     } finally {
       setLoading(false)
     }
@@ -375,6 +377,7 @@ export const AuthProvider = ({ children }) => {
       await refreshProfile()
     } catch (err) {
       showToast(err.message || 'Failed to cancel join request', 'error')
+      throw err
     } finally {
       setLoading(false)
     }

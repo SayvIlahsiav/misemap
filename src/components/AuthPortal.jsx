@@ -151,6 +151,19 @@ export default function AuthPortal() {
     }
   }
 
+  const handleCancelJoin = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await cancelJoinRequest()
+    } catch (err) {
+      console.error(err)
+      setError(err.message || 'Failed to cancel join request.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const renderAuthForm = () => (
     <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -543,7 +556,7 @@ export default function AuthPortal() {
         <div style={{ display: 'flex', gap: 10 }}>
           <Btn
             ch="Withdraw Request"
-            onClick={cancelJoinRequest}
+            onClick={handleCancelJoin}
             v="secondary"
             disabled={loading}
             style={{ flex: 1, justifyContent: 'center', padding: 8, borderRadius: 10, fontSize: 12 }}
