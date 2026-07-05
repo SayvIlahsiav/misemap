@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { fp } from '../utils.js'
 
@@ -187,3 +188,107 @@ export const InfoBox = ({children, color='amber'}) => {
 export const SecTitle = ({children}) => (
   <div style={{fontSize:11,fontWeight:700,color:'var(--text-light)',textTransform:'uppercase',letterSpacing:'0.06em',margin:'18px 0 10px'}}>{children}</div>
 )
+
+export const InlineAddDropdown = ({label, v, onChange, options = [], ph, req, disabled, readOnly}) => {
+  const [isCustom, setIsCustom] = useState(() => {
+    if (!v) return false
+    return !options.includes(v)
+  })
+
+  useEffect(() => {
+    if (v && !options.includes(v)) {
+      setIsCustom(true)
+    }
+  }, [v, options])
+
+  const handleSelectChange = (e) => {
+    const val = e.target.value
+    if (val === '+add') {
+      setIsCustom(true)
+      onChange('')
+    } else {
+      setIsCustom(false)
+      onChange(val)
+    }
+  }
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:4, width:'100%', boxSizing:'border-box'}}>
+      <Label>{label} {req && <span style={{color:'#ef4444'}}>*</span>}</Label>
+      <div style={{display:'flex', gap:8, width:'100%', boxSizing:'border-box'}}>
+        {!isCustom ? (
+          <select
+            value={v || ''}
+            onChange={handleSelectChange}
+            disabled={disabled || readOnly}
+            className="custom-input"
+            style={{
+              flex: 1,
+              border: '1px solid var(--border-strong)',
+              borderRadius: 8,
+              padding: '8px 10px',
+              fontSize: 13,
+              color: v ? 'var(--text-primary)' : 'var(--text-light)',
+              background: 'var(--bg-card)',
+              outline: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <option value="">Select category...</option>
+            {options.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+            {!readOnly && <option value="+add" style={{fontWeight: 700, color: 'var(--primary)'}}>+ Add Custom Category...</option>}
+          </select>
+        ) : (
+          <div style={{display:'flex', gap:6, flex:1, width:'100%', boxSizing:'border-box'}}>
+            <input
+              type="text"
+              value={v || ''}
+              onChange={e => onChange(e.target.value)}
+              placeholder={ph || "Enter custom category..."}
+              disabled={disabled || readOnly}
+              className="custom-input"
+              style={{
+                flex: 1,
+                border: '1px solid var(--border-strong)',
+                borderRadius: 8,
+                padding: '8px 10px',
+                fontSize: 13,
+                color: 'var(--text-primary)',
+                background: 'var(--bg-card)',
+                outline: 'none',
+                transition: 'all 0.15s ease'
+              }}
+            />
+            {!readOnly && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCustom(false)
+                  onChange('')
+                }}
+                style={{
+                  background: 'var(--bg-hover)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 8,
+                  padding: '0 12px',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--border-color)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

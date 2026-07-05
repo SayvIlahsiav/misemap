@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Sparkles, AlertTriangle, RotateCcw, Upload, Download, Check } from 'lucide-react'
-import { Modal, Btn, Bdg, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill } from './UIPrimitives.jsx'
+import { Modal, Btn, Bdg, Inp, Sel, InfoBox, SecTitle, FCBadge, SrcPill, InlineAddDropdown } from './UIPrimitives.jsx'
 import { AiPanel } from './AiPanel.jsx'
 import { IngPicker } from './IngPicker.jsx'
 import { aiSuggest } from '../services/ai.js'
@@ -12,13 +12,17 @@ import { useUI } from '../context/UIContext.jsx'
 // ─────────────────────────────────────────────────────────
 // RAW MATERIAL MODAL
 // ─────────────────────────────────────────────────────────
-export const RMModal = ({rm, onSave, onClose, readOnly}) => {
+export const RMModal = ({rm, onSave, onClose, rms = [], readOnly}) => {
   const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',buy_unit:'kg',pack_cost:0,pack_qty:1,usage_unit:'g',conversion:1000,...Object.fromEntries(NF.map(f=>[f.k,0]))}
   const [f, setF]   = useState(rm?{...blank,...rm}:{...blank,id:uid()})
   const [ai, setAi] = useState(null)
   const [aiL,setAiL]= useState(false)
   const isMobile    = useIsMobile()
+  
+  const cats = [...new Set((rms || []).map(r => r.category).filter(Boolean))].sort()
+  const subCats = [...new Set((rms || []).map(r => r.sub_category).filter(Boolean))].sort()
+
   const upd = (k,v) => setF(p=>({...p,[k]:v}))
   const buc = (f.pack_cost||0)/(f.pack_qty||1)
   const uc  = rmUC(f)
@@ -48,8 +52,8 @@ export const RMModal = ({rm, onSave, onClose, readOnly}) => {
           {!readOnly && <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>}
         </div>
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Seafood, Dairy, Vegetables' req disabled={readOnly}/>
-        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Shellfish, Leafy Greens' disabled={readOnly}/>
+         <InlineAddDropdown label='Category' v={f.category} onChange={v=>upd('category',v)} options={cats} ph='e.g. Seafood, Dairy, Vegetables' req disabled={readOnly}/>
+        <InlineAddDropdown label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} options={subCats} ph='e.g. Shellfish, Leafy Greens' disabled={readOnly}/>
         <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' req disabled={readOnly} style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
  
@@ -95,13 +99,15 @@ export const IntModal = ({inter, onSave, onClose, rms, ints, readOnly}) => {
   const totalCost = f.ingredients.reduce((s,i)=>s+ingCost(i,rms,ints),0)
   const uc  = totalCost/(f.yield_qty||1)
   const nut = intNut({...f},rms,ints)
+  const cats = [...new Set((ints || []).map(i => i.category).filter(Boolean))].sort()
+
   const valid = f.name&&(f.yield_qty||0)>0&&f.ingredients.length>0
 
   return (
     <Modal title={readOnly ? 'Intermediate Details' : (inter?'Edit Intermediate':'Add Intermediate')} onClose={onClose} wide>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
         <Inp label='Intermediate Name' v={f.name} onChange={v=>upd('name',v)} ph='e.g. Red Pasta Sauce, Marinated Chicken' req disabled={readOnly}/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Sauces, Marinades, Bases' disabled={readOnly}/>
+         <InlineAddDropdown label='Category' v={f.category} onChange={v=>upd('category',v)} options={cats} ph='e.g. Sauces, Marinades, Bases' disabled={readOnly}/>
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
@@ -233,8 +239,8 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
           {!readOnly && <Btn ch={<><Sparkles size={12}/>{aiL?'Thinking…':'AI Suggest'}</>} v='ai' sz='sm' onClick={runAI} disabled={aiL}/>}
         </div>
         <AiPanel suggestions={ai} onApply={applyAI} onDismiss={()=>setAi(null)}/>
-        <Inp label='Category' v={f.category} onChange={v=>upd('category',v)} ph='e.g. Mains, Beverages, Starters' disabled={readOnly}/>
-        <Inp label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} ph='e.g. Pasta, Smoothies, Soups' disabled={readOnly}/>
+        <InlineAddDropdown label='Category' v={f.category} onChange={v=>upd('category',v)} options={cats} ph='e.g. Mains, Beverages, Starters' disabled={readOnly}/>
+        <InlineAddDropdown label='Sub-Category' v={f.sub_category} onChange={v=>upd('sub_category',v)} options={subCats} ph='e.g. Pasta, Smoothies, Soups' disabled={readOnly}/>
         <Sel label='Food Type' v={f.food_type} onChange={v=>upd('food_type',v)} opts={FOOD_TYPES} ph='Select…' disabled={readOnly} style={{gridColumn: isMobile ? 'auto' : '1/-1'}}/>
       </div>
 

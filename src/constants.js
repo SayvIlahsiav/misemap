@@ -12,7 +12,7 @@ export const NF = [
   {k:'caffeine',l:'Caffeine',u:'mg'},
 ]
 
-export const SK = { rm:'mm_rm', int:'mm_int', mi:'mm_mi', pc:'mm_pc' }
+export const SK = { rm:'mm_rm', int:'mm_int', mi:'mm_mi', pc:'mm_pc', layout:'dashboard_layout' }
 
 export const FT_COLOR_MAP = {
   Vegetarian:'green','Non-Vegetarian':'red',

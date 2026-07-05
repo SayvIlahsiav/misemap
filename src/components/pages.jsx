@@ -30,7 +30,7 @@ export const PricingCells = ({ m }) => {
 // ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
-export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
+export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder}) => {
   const { confirm, showToast } = useUI()
   const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
@@ -38,6 +38,30 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   const alerts    = pricings.filter(m=>m.pct>threshold)
   const warnings  = pricings.filter(m=>m.pct>threshold*0.85&&m.pct<=threshold)
   const isMobile  = useIsMobile()
+
+  const handleDragStart = (e, cardId) => {
+    e.dataTransfer.setData('text/plain', cardId)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e, targetCardId) => {
+    e.preventDefault()
+    const draggedCardId = e.dataTransfer.getData('text/plain')
+    if (draggedCardId === targetCardId) return
+
+    const newOrder = [...cardOrder]
+    const draggedIdx = newOrder.indexOf(draggedCardId)
+    const targetIdx = newOrder.indexOf(targetCardId)
+    
+    if (draggedIdx > -1 && targetIdx > -1) {
+      newOrder.splice(draggedIdx, 1)
+      newOrder.splice(targetIdx, 0, draggedCardId)
+      setCardOrder(newOrder)
+    }
+  }
 
   const [expandedId, setExpandedId] = useState(null)
   const [modal, setModal]           = useState(null)
@@ -108,18 +132,22 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
     return Math.max(...topExpenses.map(r => r.unitCost), 1)
   }, [topExpenses])
 
-  const StatCard = ({icon:Icon,label,value,sub,color,onClick}) => {
+  const StatCard = ({cardId,icon:Icon,label,value,sub,color,onClick}) => {
     return (
       <div
         className="glass-panel hover-scale"
         onClick={onClick}
+        draggable
+        onDragStart={(e) => handleDragStart(e, cardId)}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, cardId)}
         style={{
           borderRadius:16,
           padding:18,
           display:'flex',
           alignItems:'center',
           gap:14,
-          cursor:'pointer',
+          cursor:'grab',
         }}
       >
         <div style={{padding:10,borderRadius:12,background:color.bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Icon size={20} style={{color:color.ico}}/></div>
@@ -222,17 +250,48 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Dashboard</h1>
           <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Live overview · shared across your team</p>
         </div>
-        {org?.logo_url && (
-          <img src={org.logo_url} alt="Org Logo" style={{maxHeight: 40, maxWidth: 120, borderRadius: 8, objectFit: 'contain'}}/>
-        )}
+        <div style={{display:'flex', alignItems:'center', gap: 12}}>
+          {cardOrder && JSON.stringify(cardOrder) !== JSON.stringify(['ingredients', 'menu', 'avg_cost', 'alerts']) && (
+            <button onClick={() => setCardOrder(['ingredients', 'menu', 'avg_cost', 'alerts'])}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                padding: '6px 12px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              Reset Layout
+            </button>
+          )}
+          {org?.logo_url && (
+            <img src={org.logo_url} alt="Org Logo" style={{maxHeight: 40, maxWidth: 120, borderRadius: 8, objectFit: 'contain'}}/>
+          )}
+        </div>
       </div>
       
       {/* Stat Cards */}
       <div style={{display:'grid',gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4,1fr)',gap:12,marginBottom:24}}>
-        <StatCard icon={Package}        label='Total Ingredients' value={rms.length + ints.length} sub={`${rms.length} Raw / ${ints.length} Prep`} color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
-        <StatCard icon={UtensilsCrossed}label='Menu Items'    value={mis.length} sub='Items on menu'                      color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
-        <StatCard icon={FlaskConical}   label='Avg Food Cost %' value={pricings.length > 0 ? `${avgFc.toFixed(1)}%` : '—'} sub={`Target: <${threshold}%`} color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('menu')}/>
-        <StatCard icon={ShieldAlert}    label='FC% Alerts'    value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'rgba(239,68,68,0.12)',ico:'#ef4444'}:{bg:'rgba(16,185,129,0.12)',ico:'#10b981'}} onClick={() => onNavigate('menu')}/>
+        {cardOrder.map(cardId => {
+          if (cardId === 'ingredients') {
+            return <StatCard key="ingredients" cardId="ingredients" icon={Package} label='Total Ingredients' value={rms.length + ints.length} sub={`${rms.length} Raw / ${ints.length} Prep`} color={{bg:'rgba(59,130,246,0.12)',ico:'#3b82f6'}} onClick={() => onNavigate('raw')}/>
+          }
+          if (cardId === 'menu') {
+            return <StatCard key="menu" cardId="menu" icon={UtensilsCrossed} label='Menu Items' value={mis.length} sub='Items on menu' color={{bg:'rgba(139,92,246,0.12)',ico:'#8b5cf6'}} onClick={() => onNavigate('menu')}/>
+          }
+          if (cardId === 'avg_cost') {
+            return <StatCard key="avg_cost" cardId="avg_cost" icon={FlaskConical} label='Avg Food Cost %' value={pricings.length > 0 ? `${avgFc.toFixed(1)}%` : '—'} sub={`Target: <${threshold}%`} color={{bg:'rgba(20,184,166,0.12)',ico:'#14b8a6'}} onClick={() => onNavigate('menu')}/>
+          }
+          if (cardId === 'alerts') {
+            return <StatCard key="alerts" cardId="alerts" icon={ShieldAlert} label='FC% Alerts' value={alerts.length} sub={`${warnings.length} warnings`} color={alerts.length>0?{bg:'rgba(239,68,68,0.12)',ico:'#ef4444'}:{bg:'rgba(16,185,129,0.12)',ico:'#10b981'}} onClick={() => onNavigate('menu')}/>
+          }
+          return null
+        })}
       </div>
 
       {/* Visual Analytics Charts Panel */}
@@ -432,6 +491,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
           rms={rms}
           ints={ints}
           pc={pc}
+          mis={mis}
         />
       )}
     </div>
@@ -602,7 +662,7 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
         </div>
       )}
       {modal==='import' && <BatchImportModal rms={rms} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <RMModal rm={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -953,7 +1013,95 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
         </div>
       )}
       {modal==='import' && <BatchImportMIModal rms={rms} ints={ints} mis={mis} onSave={saveBulk} onClose={()=>setModal(null)} pc={pc}/>}
-      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} mis={mis} readOnly={!allowEdit}/>}
+    </div>
+  )
+}
+
+const CategoryList = ({items, setItems, logType, logEvent, isMobile}) => {
+  const { showToast, confirm } = useUI()
+  const [editingCat, setEditingCat] = useState(null)
+  const [editVal, setEditVal] = useState('')
+
+  const catCounts = useMemo(() => {
+    const counts = {}
+    items.forEach(it => {
+      const c = it.category || 'Uncategorized'
+      counts[c] = (counts[c] || 0) + 1
+    })
+    return Object.entries(counts).sort((a,b) => a[0].localeCompare(b[0]))
+  }, [items])
+
+  const handleRename = (oldName, newName) => {
+    if (!newName.trim() || oldName === newName) {
+      setEditingCat(null)
+      return
+    }
+    const updated = items.map(it => {
+      const currentCat = it.category || 'Uncategorized'
+      if (currentCat === oldName) {
+        return { ...it, category: newName.trim() }
+      }
+      return it
+    })
+    setItems(updated)
+    setEditingCat(null)
+    showToast(`Renamed category to "${newName}"`, 'success')
+    if (logEvent) {
+      logEvent('Updated', `${logType} Category`, oldName, `Renamed category to "${newName}"`)
+    }
+  }
+
+  const handleDelete = async (catName) => {
+    if (catName === 'Uncategorized') return
+    if (await confirm(`Delete category "${catName}"?`, `This will reset the category for all associated items.`)) {
+      const updated = items.map(it => {
+        const currentCat = it.category || 'Uncategorized'
+        if (currentCat === catName) {
+          return { ...it, category: '' }
+        }
+        return it
+      })
+      setItems(updated)
+      showToast(`Deleted category "${catName}"`, 'warning')
+      if (logEvent) {
+        logEvent('Deleted', `${logType} Category`, catName, `Cleared category for all matching items`)
+      }
+    }
+  }
+
+  if (catCounts.length === 0) {
+    return <div style={{fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0'}}>No categories found.</div>
+  }
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:10}}>
+      {catCounts.map(([cat, count]) => (
+        <div key={cat} style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, fontSize:13, background:'var(--bg-hover)', padding:'8px 12px', borderRadius:8, border:'1px solid var(--border-color)'}}>
+          {editingCat === cat ? (
+            <div style={{display:'flex', gap:6, flex:1}}>
+              <input type="text" value={editVal} onChange={e => setEditVal(e.target.value)}
+                className="custom-input"
+                style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:6, padding:'4px 6px', fontSize:12, outline:'none', background:'var(--bg-card)', color:'var(--text-primary)'}}/>
+              <button onClick={() => handleRename(cat, editVal)} style={{background:'var(--primary)', border:'none', borderRadius:6, padding:'4px 8px', color:'#fff', fontSize:11, fontWeight:600, cursor:'pointer'}}>Save</button>
+              <button onClick={() => setEditingCat(null)} style={{background:'var(--bg-hover)', border:'1px solid var(--border-color)', borderRadius:6, padding:'4px 8px', color:'var(--text-secondary)', fontSize:11, fontWeight:600, cursor:'pointer'}}>Cancel</button>
+            </div>
+          ) : (
+            <>
+              <div style={{display:'flex', flexDirection:'column'}}>
+                <span style={{fontWeight:600, color:'var(--text-primary)'}}>{cat}</span>
+                <span style={{fontSize:11, color:'var(--text-light)'}}>{count} {count === 1 ? 'item' : 'items'}</span>
+              </div>
+              {cat !== 'Uncategorized' && (
+                <div style={{display:'flex', gap:6}}>
+                  <button onClick={() => { setEditingCat(cat); setEditVal(cat); }} style={{background:'transparent', border:'none', color:'var(--text-light)', cursor:'pointer', fontSize:11, fontWeight:600}} onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-light)'}>Rename</button>
+                  <button onClick={() => handleDelete(cat)} style={{background:'transparent', border:'none', color:'var(--text-light)', cursor:'pointer', fontSize:11, fontWeight:600}} onMouseEnter={e => e.currentTarget.style.color = '#ef4444'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-light)'}>Delete</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -1224,6 +1372,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
       }}>
         {[
           { id: 'preferences', label: 'Profile & Team' },
+          { id: 'categories', label: 'Category Manager' },
           { id: 'rules', label: 'Pricing Rules' },
           { id: 'permissions', label: 'Permissions' },
           { id: 'activity', label: 'Activity Logs' },
@@ -1629,6 +1778,37 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
                 })}
               </div>
             )}
+          </div>
+        </Card>
+      )}
+
+      {/* Category Manager Tab Content */}
+      {settingsTab === 'categories' && (
+        <Card title='Workspace Category Manager'>
+          <div style={{display:'flex', flexDirection:'column', gap:20}}>
+            <p style={{fontSize:13, color:'var(--text-light)', margin:0}}>
+              View and manage categories used across raw materials, intermediates, and menu items. Renaming a category updates all associated items.
+            </p>
+            
+            <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap:16}}>
+              {/* Raw Materials Categories */}
+              <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
+                <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Raw Material Categories</div>
+                <CategoryList type="raw" items={rms} setItems={setRms} logType="Raw Material" logEvent={logEvent} isMobile={isMobile} />
+              </div>
+              
+              {/* Intermediates Categories */}
+              <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
+                <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Prep Recipe Categories</div>
+                <CategoryList type="int" items={ints} setItems={setInts} logType="Intermediate Recipe" logEvent={logEvent} isMobile={isMobile} />
+              </div>
+              
+              {/* Menu Item Categories */}
+              <div className="glass-panel" style={{borderRadius:12, padding:16, background:'rgba(255,255,255,0.02)', border:'1px solid var(--border-color)'}}>
+                <div style={{fontWeight:700, fontSize:12, color:'var(--text-secondary)', marginBottom:12, borderBottom:'1px solid var(--border-color)', paddingBottom:6}}>Menu Item Categories</div>
+                <CategoryList type="menu" items={mis} setItems={setMis} logType="Menu Item" logEvent={logEvent} isMobile={isMobile} />
+              </div>
+            </div>
           </div>
         </Card>
       )}
