@@ -466,13 +466,13 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  const renameOrg = async (newName) => {
+  const updateOrg = async (newName, logoUrl) => {
     if (!org?.id) throw new Error('No active organization connection.')
-    if (profile?.role !== 'owner') throw new Error('Only the owner can rename the organization.')
+    if (profile?.role !== 'owner') throw new Error('Only the owner can update the organization profile.')
     try {
       const { data: updatedOrg, error } = await supabase
         .from('organizations')
-        .update({ name: newName })
+        .update({ name: newName, logo_url: logoUrl })
         .eq('id', org.id)
         .select()
         .single()
@@ -480,7 +480,7 @@ export const AuthProvider = ({ children }) => {
       setOrg(updatedOrg)
       return updatedOrg
     } catch (err) {
-      console.error('[AuthContext] Error renaming organization:', err)
+      console.error('[AuthContext] Error updating organization:', err)
       throw err
     }
   }
@@ -495,7 +495,7 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       user, profile, org, pendingRequest, pendingInvitation, invitedEmails, loading,
       signIn, signUp, signInWithGoogle, signOut,
-      createOrg, joinOrg, cancelJoinRequest, renameOrg, refreshProfile, seedSampleData,
+      createOrg, joinOrg, cancelJoinRequest, updateOrg, refreshProfile, seedSampleData,
       inviteMember, revokeInvite, acceptInvitation, declineInvitation
     }}>
       {children}

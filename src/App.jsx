@@ -304,9 +304,13 @@ function AppContent() {
             <Menu size={20} />
           </button>
           <div style={{display: 'flex', alignItems: 'center', gap: 8}}>
-            <div style={{background: 'var(--primary)', borderRadius: 8, padding: 6, display: 'flex'}}>
-              <ChefHat size={14} style={{color: '#fff'}} />
-            </div>
+            {org?.logo_url ? (
+              <img src={org.logo_url} alt="Logo" style={{width: 24, height: 24, borderRadius: 6, objectFit: 'cover'}}/>
+            ) : (
+              <div style={{background: 'var(--primary)', borderRadius: 8, padding: 6, display: 'flex'}}>
+                <ChefHat size={14} style={{color: '#fff'}} />
+              </div>
+            )}
             <span style={{fontWeight: 800, fontSize: 13, color: 'var(--text-primary)'}}>MiseMap</span>
           </div>
           <button onClick={() => { setMobileProfileOpen(!mobileProfileOpen); setMobileMenuOpen(false); }}
@@ -336,9 +340,13 @@ function AppContent() {
       {/* ── Sidebar ── */}
       <div className="glass-sidebar" style={sidebarStyle}>
         <div style={{display:'flex',alignItems:'center',gap:10,padding:'0 8px 20px',borderBottom:'1px solid var(--border-color)',marginBottom:12}}>
-          <div style={{background:'var(--primary)',borderRadius:10,padding:8,display:'flex'}}>
-            <ChefHat size={18} style={{color:'#fff'}}/>
-          </div>
+          {org?.logo_url ? (
+            <img src={org.logo_url} alt="Logo" style={{width: 32, height: 32, borderRadius: 8, objectFit: 'cover'}}/>
+          ) : (
+            <div style={{background:'var(--primary)',borderRadius:10,padding:8,display:'flex'}}>
+              <ChefHat size={18} style={{color:'#fff'}}/>
+            </div>
+          )}
           <div style={{flex: 1}}>
             <div style={{fontWeight:800,fontSize:14,color:'var(--text-primary)'}}>MiseMap</div>
             <div style={{fontSize:10,color:'var(--text-light)'}}>by Sayv Ilahsiav</div>

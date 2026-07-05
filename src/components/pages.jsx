@@ -32,6 +32,7 @@ export const PricingCells = ({ m }) => {
 // ─────────────────────────────────────────────────────────
 export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
   const { confirm, showToast } = useUI()
+  const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
   const alerts    = pricings.filter(m=>m.pct>threshold)
@@ -216,9 +217,14 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis}) => {
 
   return (
     <div>
-      <div style={{marginBottom:24}}>
-        <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Dashboard</h1>
-        <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Live overview · shared across your team</p>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24}}>
+        <div>
+          <h1 style={{fontSize:22,fontWeight:800,color:'var(--text-primary)',margin:0}}>Dashboard</h1>
+          <p style={{fontSize:13,color:'var(--text-light)',marginTop:4}}>Live overview · shared across your team</p>
+        </div>
+        {org?.logo_url && (
+          <img src={org.logo_url} alt="Org Logo" style={{maxHeight: 40, maxWidth: 120, borderRadius: 8, objectFit: 'contain'}}/>
+        )}
       </div>
       
       {/* Stat Cards */}
@@ -439,8 +445,29 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
+  const [filterCat, setFCat] = useState('')
+  const [sortBy, setSortBy] = useState('name-asc')
   const isMobile          = useIsMobile()
-  const filtered = rms.filter(r=>(r?.name || '').toLowerCase().includes(q.toLowerCase())||(r?.category||'').toLowerCase().includes(q.toLowerCase()))
+
+  const cats = useMemo(() => [...new Set(rms.map(r => r.category).filter(Boolean))].sort(), [rms])
+
+  const filtered = useMemo(() => {
+    let result = rms.filter(r => 
+      ((r?.name || '').toLowerCase().includes(q.toLowerCase()) || (r?.category || '').toLowerCase().includes(q.toLowerCase())) &&
+      (!filterCat || r.category === filterCat)
+    )
+
+    if (sortBy === 'name-asc') {
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    } else if (sortBy === 'name-desc') {
+      result.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    } else if (sortBy === 'cost-asc') {
+      result.sort((a, b) => rmUC(a) - rmUC(b))
+    } else if (sortBy === 'cost-desc') {
+      result.sort((a, b) => rmUC(b) - rmUC(a))
+    }
+    return result
+  }, [rms, q, filterCat, sortBy])
   
   const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_ingredients !== false
 
@@ -497,11 +524,31 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc}) => {
           <span>⚠️ Workspace editing is locked for team members by the administrator.</span>
         </div>
       )}
-      <div style={{position:'relative',marginBottom:16}}>
-        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search by name or category…'
-          className="custom-input"
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
+      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',gap:10,marginBottom:16}}>
+        <div style={{position:'relative',flex:1}}>
+          <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search raw materials…'
+            className="custom-input"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          {cats.length>0&&(
+            <select value={filterCat} onChange={e=>setFCat(e.target.value)}
+              className="custom-input"
+              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+              <option value=''>All categories</option>
+              {cats.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+            className="custom-input"
+            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+            <option value='name-asc'>Name (A-Z)</option>
+            <option value='name-desc'>Name (Z-A)</option>
+            <option value='cost-asc'>Cost: Low to High</option>
+            <option value='cost-desc'>Cost: High to Low</option>
+          </select>
+        </div>
       </div>
       {filtered.length===0?(
         <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
@@ -567,8 +614,29 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
+  const [filterCat, setFCat] = useState('')
+  const [sortBy, setSortBy] = useState('name-asc')
   const isMobile          = useIsMobile()
-  const filtered = ints.filter(i=>(i?.name || '').toLowerCase().includes(q.toLowerCase())||(i?.category||'').toLowerCase().includes(q.toLowerCase()))
+
+  const cats = useMemo(() => [...new Set(ints.map(i => i.category).filter(Boolean))].sort(), [ints])
+
+  const filtered = useMemo(() => {
+    let result = ints.filter(i => 
+      ((i?.name || '').toLowerCase().includes(q.toLowerCase()) || (i?.category || '').toLowerCase().includes(q.toLowerCase())) &&
+      (!filterCat || i.category === filterCat)
+    )
+
+    if (sortBy === 'name-asc') {
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    } else if (sortBy === 'name-desc') {
+      result.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    } else if (sortBy === 'cost-asc') {
+      result.sort((a, b) => intUC(a, rms, ints) - intUC(b, rms, ints))
+    } else if (sortBy === 'cost-desc') {
+      result.sort((a, b) => intUC(b, rms, ints) - intUC(a, rms, ints))
+    }
+    return result
+  }, [ints, q, filterCat, sortBy, rms])
   
   const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_ingredients !== false
 
@@ -625,11 +693,31 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc}) => {
         </div>
       )}
       {rms.length===0&&<div style={{marginBottom:16}}><InfoBox color='blue'>Add raw materials first before creating intermediates.</InfoBox></div>}
-      <div style={{position:'relative',marginBottom:16}}>
-        <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search intermediates…'
-          className="custom-input"
-          style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
+      <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',gap:10,marginBottom:16}}>
+        <div style={{position:'relative',flex:1}}>
+          <Search size={13} style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'var(--text-light)'}}/>
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder='Search intermediates…'
+            className="custom-input"
+            style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          {cats.length>0&&(
+            <select value={filterCat} onChange={e=>setFCat(e.target.value)}
+              className="custom-input"
+              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+              <option value=''>All categories</option>
+              {cats.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+            className="custom-input"
+            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 150,cursor:'pointer',transition:'all 0.15s ease'}}>
+            <option value='name-asc'>Name (A-Z)</option>
+            <option value='name-desc'>Name (Z-A)</option>
+            <option value='cost-asc'>Cost: Low to High</option>
+            <option value='cost-desc'>Cost: High to Low</option>
+          </select>
+        </div>
       </div>
       {filtered.length===0?(
         <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
@@ -687,14 +775,39 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
   const [modal, setModal]   = useState(null)
   const [q, setQ]           = useState('')
   const [filterCat, setFCat]= useState('')
+  const [filterType, setFType] = useState('')
+  const [sortBy, setSortBy] = useState('name-asc')
   const isMobile          = useIsMobile()
-  const cats      = [...new Set(mis.map(m=>m.category).filter(Boolean))].sort()
+  const cats      = useMemo(() => [...new Set(mis.map(m=>m.category).filter(Boolean))].sort(), [mis])
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])
-  const filtered  = pricings.filter(m=>
-    ((m?.name || '').toLowerCase().includes(q.toLowerCase())||(m?.category||'').toLowerCase().includes(q.toLowerCase()))
-    &&(!filterCat||m.category===filterCat)
-  )
+  
+  const filtered = useMemo(() => {
+    let result = pricings.filter(m =>
+      ((m?.name || '').toLowerCase().includes(q.toLowerCase()) || (m?.category || '').toLowerCase().includes(q.toLowerCase())) &&
+      (!filterCat || m.category === filterCat) &&
+      (!filterType || m.food_type === filterType)
+    )
+
+    if (sortBy === 'name-asc') {
+      result.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    } else if (sortBy === 'name-desc') {
+      result.sort((a, b) => (b.name || '').localeCompare(a.name || ''))
+    } else if (sortBy === 'price-asc') {
+      result.sort((a, b) => a.sp - b.sp)
+    } else if (sortBy === 'price-desc') {
+      result.sort((a, b) => b.sp - a.sp)
+    } else if (sortBy === 'cost-asc') {
+      result.sort((a, b) => a.food - b.food)
+    } else if (sortBy === 'cost-desc') {
+      result.sort((a, b) => b.food - a.food)
+    } else if (sortBy === 'fc-asc') {
+      result.sort((a, b) => a.pct - b.pct)
+    } else if (sortBy === 'fc-desc') {
+      result.sort((a, b) => b.pct - a.pct)
+    }
+    return result
+  }, [pricings, q, filterCat, filterType, sortBy])
   
   const allowEdit = profile?.role === 'owner' || pc?.permissions?.allow_edit_menu_items !== false
 
@@ -758,14 +871,38 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
             className="custom-input"
             style={{width:'100%',boxSizing:'border-box',border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px 9px 34px',fontSize:13,outline:'none',color:'var(--text-primary)',background:'var(--bg-card)',transition:'all 0.15s ease'}}/>
         </div>
-        {cats.length>0&&(
-          <select value={filterCat} onChange={e=>setFCat(e.target.value)}
+        <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+          {cats.length>0&&(
+            <select value={filterCat} onChange={e=>setFCat(e.target.value)}
+              className="custom-input"
+              style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+              <option value=''>All categories</option>
+              {cats.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          <select value={filterType} onChange={e=>setFType(e.target.value)}
             className="custom-input"
-            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterCat?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 160,cursor:'pointer',transition:'all 0.15s ease'}}>
-            <option value=''>All categories</option>
-            {cats.map(c=><option key={c} value={c}>{c}</option>)}
+            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:filterType?'var(--text-secondary)':'var(--text-light)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+            <option value=''>All Types</option>
+            <option value='Vegetarian'>Vegetarian</option>
+            <option value='Non-Vegetarian'>Non-Vegetarian</option>
+            <option value='Vegan'>Vegan</option>
+            <option value='Eggetarian'>Eggetarian</option>
+            <option value='Jain'>Jain</option>
           </select>
-        )}
+          <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+            className="custom-input"
+            style={{border:'1px solid var(--border-strong)',borderRadius:10,padding:'9px 12px',fontSize:13,color:'var(--text-secondary)',outline:'none',background:'var(--bg-card)',minWidth: 140,cursor:'pointer',transition:'all 0.15s ease'}}>
+            <option value='name-asc'>Name (A-Z)</option>
+            <option value='name-desc'>Name (Z-A)</option>
+            <option value='price-asc'>Price: Low to High</option>
+            <option value='price-desc'>Price: High to Low</option>
+            <option value='cost-asc'>Food Cost: Low to High</option>
+            <option value='cost-desc'>Food Cost: High to Low</option>
+            <option value='fc-asc'>Food Cost %: Low to High</option>
+            <option value='fc-desc'>Food Cost %: High to Low</option>
+          </select>
+        </div>
       </div>
       {filtered.length===0?(
         <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
@@ -825,7 +962,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile}) => {
 // SETTINGS PAGE
 // ─────────────────────────────────────────────────────────
 export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, setMis, seedSampleData, invitedEmails = [], inviteMember, revokeInvite, activityLog, logEvent}) => {
-  const { renameOrg, refreshProfile } = useAuth()
+  const { updateOrg, refreshProfile } = useAuth()
   const { confirm, showToast } = useUI()
   const [draft, setDraft]     = useState(()=>JSON.parse(JSON.stringify(pc)))
   const [cascade, setCascade] = useState(null)
@@ -834,6 +971,7 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
   const [resetting, setResetting] = useState(false)
 
   const [orgName, setOrgName] = useState(org?.name || '')
+  const [logoUrl, setLogoUrl] = useState(org?.logo_url || '')
   const [copied, setCopied] = useState(false)
   const [requests, setRequests] = useState([])
   const [requestsLoading, setRequestsLoading] = useState(false)
@@ -869,15 +1007,15 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
     loadRequests()
   }, [org?.id, profile?.role])
 
-  const handleRenameOrg = async () => {
+  const handleUpdateOrg = async () => {
     try {
-      await renameOrg(orgName)
-      showToast('Organization renamed successfully!', 'success')
+      await updateOrg(orgName, logoUrl)
+      showToast('Organization profile updated successfully!', 'success')
       if (logEvent) {
-        logEvent('Updated', 'Organization', org.name, `Renamed organization to ${orgName}`)
+        logEvent('Updated', 'Organization', org.name, `Updated organization profile`)
       }
     } catch (e) {
-      showToast(e.message || 'Failed to rename organization', 'error')
+      showToast(e.message || 'Failed to update organization profile', 'error')
     }
   }
 
@@ -1113,15 +1251,19 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
               <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
                 <div>
                   <Label>Organization Name</Label>
-                  <div style={{display:'flex', gap:8, marginTop: 4}}>
-                    <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
-                      className="custom-input"
-                      style={{flex:1, border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease'}}/>
-                    {profile?.role === 'owner' && (
-                      <Btn ch='Save' onClick={handleRenameOrg} v="secondary" sz="md" disabled={!orgName.trim() || orgName === org?.name}/>
-                    )}
-                  </div>
+                  <input type='text' value={orgName} onChange={e => setOrgName(e.target.value)} disabled={profile?.role !== 'owner'}
+                    className="custom-input"
+                    style={{width:'100%', border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease', marginTop: 4, boxSizing: 'border-box'}}/>
                 </div>
+                <div>
+                  <Label>Organization Logo URL</Label>
+                  <input type='text' value={logoUrl} onChange={e => setLogoUrl(e.target.value)} disabled={profile?.role !== 'owner'} placeholder="https://example.com/logo.png"
+                    className="custom-input"
+                    style={{width:'100%', border:'1px solid var(--border-strong)', borderRadius:8, padding:'8px 10px', fontSize:13, color:'var(--text-primary)', background:profile?.role !== 'owner' ? 'var(--bg-hover)' : 'var(--bg-card)', outline:'none',transition:'all 0.15s ease', marginTop: 4, boxSizing: 'border-box'}}/>
+                </div>
+              </div>
+              
+              <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:16}}>
                 <div>
                   <Label>Organization ID (Share to invite members)</Label>
                   <div style={{display:'flex', gap:8, marginTop: 4}}>
@@ -1131,6 +1273,11 @@ export const SettingsPage = ({pc, setPc, mis, profile, org, setRms, setInts, set
                     <Btn ch={copied ? 'Copied!' : 'Copy'} onClick={handleCopyId} v="secondary" sz="md"/>
                   </div>
                 </div>
+                {profile?.role === 'owner' && (
+                  <div style={{display:'flex', alignItems:'flex-end', justifyContent: 'flex-end'}}>
+                    <Btn ch='Save Profile Changes' onClick={handleUpdateOrg} v="primary" sz="md" disabled={(!orgName.trim() || orgName === org?.name) && logoUrl === (org?.logo_url || '')} style={{width: isMobile ? '100%' : 'auto', justifyContent: 'center'}}/>
+                  </div>
+                )}
               </div>
               <div style={{borderTop:'1px solid var(--border-color)', paddingTop:16, marginTop: 8}}>
                 <Label>Your Profile Username (Optional)</Label>
