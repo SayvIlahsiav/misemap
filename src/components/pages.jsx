@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCcw,
-  Eye, Sparkles, RotateCcw, Check, Copy, Lock, Mail, AlertCircle, Pin
+  Eye, Sparkles, RotateCcw, Check, Copy, Lock, Mail, AlertCircle, Pin, GitCompare
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
