@@ -13,6 +13,7 @@ import AuthPortal from './components/AuthPortal.jsx'
 import { storage } from './lib/storage.js'
 import { HomeTab } from './components/Home.jsx'
 import { VersionCompare } from './components/VersionCompare.jsx'
+import { CloneVersionModal } from './components/modals.jsx'
 
 const getTabFromPath = () => {
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
@@ -188,6 +189,7 @@ function AppContent() {
   const [customCats, setCustomCats, customCatsOk] = useShared(SK.custom_cats, { raw: [], int: [], menu: [], raw_sub: [], menu_sub: [] }, org?.id)
   const [pinnedItems, setPinnedItems, pinnedOk] = useShared('mm_pinned_items', { rms: [], ints: [], mis: [] }, org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
+  const [cloneModalSourceId, setCloneModalSourceId] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false)
 
@@ -255,10 +257,10 @@ function AppContent() {
       const pKey = sourceId === 'working_draft' ? SK.pc : `${SK.pc}:${sourceId}`
 
       const [rRaw, iRaw, mRaw, pRaw] = await Promise.all([
-        storage.get(rKey, org.id),
-        storage.get(iKey, org.id),
-        storage.get(mKey, org.id),
-        storage.get(pKey, org.id),
+        storage.get(rKey, org?.id),
+        storage.get(iKey, org?.id),
+        storage.get(mKey, org?.id),
+        storage.get(pKey, org?.id),
       ])
 
       sourceRms = rRaw ? JSON.parse(rRaw) : []
@@ -269,17 +271,17 @@ function AppContent() {
 
     const suffix = `:${newId}`
     await Promise.all([
-      storage.set(SK.rm + suffix, JSON.stringify(sourceRms), org.id),
-      storage.set(SK.int + suffix, JSON.stringify(sourceInts), org.id),
-      storage.set(SK.mi + suffix, JSON.stringify(sourceMis), org.id),
-      storage.set(SK.pc + suffix, JSON.stringify(sourcePc), org.id),
+      storage.set(SK.rm + suffix, JSON.stringify(sourceRms), org?.id),
+      storage.set(SK.int + suffix, JSON.stringify(sourceInts), org?.id),
+      storage.set(SK.mi + suffix, JSON.stringify(sourceMis), org?.id),
+      storage.set(SK.pc + suffix, JSON.stringify(sourcePc), org?.id),
     ])
 
     try {
-      localStorage.setItem(`${SK.rm}:${newId}:${org.id}`, JSON.stringify(sourceRms))
-      localStorage.setItem(`${SK.int}:${newId}:${org.id}`, JSON.stringify(sourceInts))
-      localStorage.setItem(`${SK.mi}:${newId}:${org.id}`, JSON.stringify(sourceMis))
-      localStorage.setItem(`${SK.pc}:${newId}:${org.id}`, JSON.stringify(sourcePc))
+      localStorage.setItem(`${SK.rm}:${newId}:${org?.id || 'local'}`, JSON.stringify(sourceRms))
+      localStorage.setItem(`${SK.int}:${newId}:${org?.id || 'local'}`, JSON.stringify(sourceInts))
+      localStorage.setItem(`${SK.mi}:${newId}:${org?.id || 'local'}`, JSON.stringify(sourceMis))
+      localStorage.setItem(`${SK.pc}:${newId}:${org?.id || 'local'}`, JSON.stringify(sourcePc))
     } catch (e) {
       console.warn('[handleCloneVersion] localStorage cache save error:', e)
     }
@@ -300,17 +302,17 @@ function AppContent() {
 
     const suffix = `:${versionId}`
     Promise.all([
-      storage.delete(SK.rm + suffix, org.id),
-      storage.delete(SK.int + suffix, org.id),
-      storage.delete(SK.mi + suffix, org.id),
-      storage.delete(SK.pc + suffix, org.id),
+      storage.delete(SK.rm + suffix, org?.id),
+      storage.delete(SK.int + suffix, org?.id),
+      storage.delete(SK.mi + suffix, org?.id),
+      storage.delete(SK.pc + suffix, org?.id),
     ]).catch(e => console.warn('[handleDeleteVersion] Supabase delete error:', e))
 
     try {
-      localStorage.removeItem(`${SK.rm}:${versionId}:${org.id}`)
-      localStorage.removeItem(`${SK.int}:${versionId}:${org.id}`)
-      localStorage.removeItem(`${SK.mi}:${versionId}:${org.id}`)
-      localStorage.removeItem(`${SK.pc}:${versionId}:${org.id}`)
+      localStorage.removeItem(`${SK.rm}:${versionId}:${org?.id || 'local'}`)
+      localStorage.removeItem(`${SK.int}:${versionId}:${org?.id || 'local'}`)
+      localStorage.removeItem(`${SK.mi}:${versionId}:${org?.id || 'local'}`)
+      localStorage.removeItem(`${SK.pc}:${versionId}:${org?.id || 'local'}`)
     } catch (e) {}
 
     logEvent('Deleted Version', 'Menu Version', versionId, `Deleted menu version and cleared data`)
@@ -496,10 +498,7 @@ function AppContent() {
           <div style={{fontSize:10, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
             <span>Menu Version</span>
             <button onClick={() => {
-              const label = prompt('Enter new version label (e.g. Summer Menu 2026):')
-              if (!label || !label.trim()) return
-              const sourceId = activeVersionId
-              handleCloneVersion(sourceId, label.trim())
+              setCloneModalSourceId(activeVersionId)
             }} style={{background:'none', border:'none', color:'var(--primary)', fontWeight:700, cursor:'pointer', fontSize:10, display:'flex', alignItems:'center', gap:2}}>
               <GitBranch size={10}/> + Clone
             </button>
@@ -670,6 +669,17 @@ function AppContent() {
         {tab==='compare'       && <VersionCompare versions={versions} activeVersionId={activeVersionId} org={org} rms={rms} ints={ints} mis={mis} pc={pc} logEvent={logEvent} />}
         {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent} customCats={customCats} setCustomCats={setCustomCats} activeVersionId={activeVersionId} versions={versions} handleCloneVersion={handleCloneVersion} handleDeleteVersion={handleDeleteVersion} />}
       </div>
+      {cloneModalSourceId && (
+        <CloneVersionModal
+          sourceId={cloneModalSourceId}
+          versions={versions}
+          onClose={() => setCloneModalSourceId(null)}
+          onClone={(label) => {
+            handleCloneVersion(cloneModalSourceId, label)
+            setCloneModalSourceId(null)
+          }}
+        />
+      )}
     </div>
   )
 }
