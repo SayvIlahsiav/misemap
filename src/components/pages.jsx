@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert, AlertTriangle,
   Plus, Search, Pencil, Trash2, ChevronDown, ChevronUp, RefreshCcw,
-  Eye, Sparkles, RotateCcw, Check, Copy, Lock, Mail, AlertCircle
+  Eye, Sparkles, RotateCcw, Check, Copy, Lock, Mail, AlertCircle, Pin
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge, InfoBox, Inp, Sel, Label } from './UIPrimitives.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -10,7 +10,7 @@ import { useUI } from '../context/UIContext.jsx'
 import { supabase } from '../lib/storage.js'
 import { RMModal, IntModal, MIModal, CascadeModal, BatchImportModal, BatchImportIntModal, BatchImportMIModal } from './modals.jsx'
 import { FT_COLOR_MAP } from '../constants.js'
-import { fc, fp, rmUC, ingCost, intUC, calcPricing } from '../utils.js'
+import { fc, fp, rmUC, ingCost, intUC, calcPricing, getRmUsageDetails, getSimilarDishes } from '../utils.js'
 import { useIsMobile } from '../hooks/useIsMobile.js'
 
 // ─────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export const PricingCells = ({ m }) => {
 // ─────────────────────────────────────────────────────────
 // DASHBOARD
 // ─────────────────────────────────────────────────────────
-export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder}) => {
+export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder, activeVersionId, versions}) => {
   const { confirm, showToast } = useUI()
   const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
@@ -77,6 +77,30 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
 
   const [expandedId, setExpandedId] = useState(null)
   const [modal, setModal]           = useState(null)
+  const [skuSearch, setSkuSearch] = useState('')
+  const [skuUsageExpanded, setSkuUsageExpanded] = useState(false)
+  const [similarExpanded, setSimilarExpanded] = useState(false)
+
+  const activeVersionLabel = useMemo(() => {
+    return (versions || []).find(v => v.id === activeVersionId)?.label || activeVersionId
+  }, [versions, activeVersionId])
+
+  const skuDetails = useMemo(() => {
+    return getRmUsageDetails(rms, ints, mis)
+  }, [rms, ints, mis])
+
+  const sortedSkus = useMemo(() => {
+    return Object.values(skuDetails.usage).sort((a, b) => b.totalCount - a.totalCount)
+  }, [skuDetails])
+
+  const topExpenseSku = useMemo(() => {
+    const list = Object.values(skuDetails.usage).sort((a, b) => b.totalCost - a.totalCost)
+    return list[0]
+  }, [skuDetails])
+
+  const similarDishes = useMemo(() => {
+    return getSimilarDishes(mis)
+  }, [mis])
 
   const save = (item) => {
     setMis(mis.map(m => m.id === item.id ? item : m))
@@ -195,7 +219,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
                 const name = target?.name || 'Unknown Ingredient'
                 return (
                   <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text-secondary)'}}>
-                    <span>{name} ({ing.amount}{ing.unit})</span>
+                    <span>{name} ({ing.qty}{ing.unit})</span>
                     <span style={{fontWeight: 600, color: 'var(--text-primary)'}}>{fc(ing.cost)}</span>
                   </div>
                 )
@@ -460,6 +484,214 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
         })}
       </div>
 
+      {/* ── Previews Section ── */}
+      <div style={{display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:20, marginBottom:24}}>
+        
+        {/* Version Comparison Card */}
+        <div className="glass-panel" style={{borderRadius:16, padding:18, display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+          <div>
+            <h3 style={{fontSize:14, fontWeight:800, color:'var(--text-primary)', display:'flex', alignItems: 'center', gap: 6, margin: 0}}>
+              <GitCompare size={16} style={{color:'var(--primary)'}}/> Menu Versioning & Audits
+            </h3>
+            <p style={{fontSize:12, color:'var(--text-light)', marginTop:6, lineHeight:1.4}}>
+              Verify and compare menu version snapshots to trace historical ingredient price drifts, recipe modifications, and profit margins.
+            </p>
+            <div style={{marginTop:12, background:'var(--bg-hover)', borderRadius:10, padding:'10px 12px', fontSize:11, color:'var(--text-secondary)'}}>
+              <strong>Active version:</strong> {activeVersionLabel} · <strong>Stored versions:</strong> {versions?.length || 1}
+            </div>
+          </div>
+          <button onClick={() => onNavigate('compare')} style={{
+            background: 'none',
+            border: '1px solid var(--primary)',
+            borderRadius: 8,
+            padding: '8px 12px',
+            color: 'var(--primary)',
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: 'pointer',
+            marginTop: 16,
+            alignSelf: 'flex-start',
+            transition: 'all 0.15s'
+          }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; }}
+             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--primary)'; }}>
+            Go to Version Compare
+          </button>
+        </div>
+
+        {/* Similar Dishes Card */}
+        <div className="glass-panel" style={{borderRadius:16, padding:18, display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
+          <div>
+            <h3 style={{fontSize:14, fontWeight:800, color:'var(--text-primary)', display:'flex', alignItems: 'center', gap: 6, margin: 0}}>
+              <UtensilsCrossed size={16} style={{color:'#10b981'}}/> Similar Recipes Engine
+            </h3>
+            <p style={{fontSize:12, color:'var(--text-light)', marginTop:6, lineHeight:1.4}}>
+              Finds recipe variants sharing above 60% of ingredients. Useful for ingredient efficiency analysis and cross-dish profit optimization.
+            </p>
+            <div style={{marginTop:12, background:'var(--bg-hover)', borderRadius:10, padding:'10px 12px', fontSize:11, color:'var(--text-secondary)'}}>
+              <strong>Overlapping recipe groups:</strong> {similarDishes.length} matches found
+            </div>
+          </div>
+          <button onClick={() => setSimilarExpanded(!similarExpanded)} style={{
+            background: 'none',
+            border: '1px solid #10b981',
+            borderRadius: 8,
+            padding: '8px 12px',
+            color: '#10b981',
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: 'pointer',
+            marginTop: 16,
+            alignSelf: 'flex-start',
+            transition: 'all 0.15s'
+          }} onMouseEnter={e => { e.currentTarget.style.background = '#10b981'; e.currentTarget.style.color = '#fff'; }}
+             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#10b981'; }}>
+            {similarExpanded ? 'Hide Similar Dishes' : 'Analyze Similar Dishes'}
+          </button>
+        </div>
+
+        {/* SKU Usage Card */}
+        <div className="glass-panel" style={{borderRadius:16, padding:18, display:'flex', flexDirection:'column', justifyContent:'space-between', gridColumn: isMobile ? 'auto' : '1/-1'}}>
+          <div>
+            <h3 style={{fontSize:14, fontWeight:800, color:'var(--text-primary)', display:'flex', alignItems: 'center', gap: 6, margin: 0}}>
+              <Package size={16} style={{color:'#3b82f6'}}/> SKU Usage & Cost Contribution
+            </h3>
+            <p style={{fontSize:12, color:'var(--text-light)', marginTop:6, lineHeight:1.4}}>
+              Tracks raw material consumption counts (direct usage in dishes + indirect usage inside prep recipes) and total cost distributions.
+            </p>
+            <div style={{marginTop:12, display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap:10}}>
+              <div style={{background:'var(--bg-hover)', borderRadius:10, padding:'10px 12px', fontSize:11, color:'var(--text-secondary)'}}>
+                <strong>Most Used Ingredient:</strong> {sortedSkus[0]?.rm.name || '—'} (in {sortedSkus[0]?.totalCount || 0} recipes)
+              </div>
+              <div style={{background:'var(--bg-hover)', borderRadius:10, padding:'10px 12px', fontSize:11, color:'var(--text-secondary)'}}>
+                <strong>Top Cost Contributor:</strong> {topExpenseSku?.rm.name || '—'} (menu cost contribution: {fc(topExpenseSku?.totalCost || 0)})
+              </div>
+            </div>
+          </div>
+          <button onClick={() => setSkuUsageExpanded(!skuUsageExpanded)} style={{
+            background: 'none',
+            border: '1px solid #3b82f6',
+            borderRadius: 8,
+            padding: '8px 12px',
+            color: '#3b82f6',
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: 'pointer',
+            marginTop: 16,
+            alignSelf: 'flex-start',
+            transition: 'all 0.15s'
+          }} onMouseEnter={e => { e.currentTarget.style.background = '#3b82f6'; e.currentTarget.style.color = '#fff'; }}
+             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#3b82f6'; }}>
+            {skuUsageExpanded ? 'Hide SKU Intelligence' : 'View SKU Intelligence Report'}
+          </button>
+        </div>
+
+      </div>
+
+      {/* ── SKU Intelligence Expanded Report ── */}
+      {skuUsageExpanded && (
+        <div className="glass-panel" style={{borderRadius:16, padding:20, marginBottom:24}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:16}}>
+            <h4 style={{fontSize:13, fontWeight:800, color:'var(--text-primary)', margin:0}}>SKU Usage & Cost Distribution Analysis</h4>
+            <input value={skuSearch} onChange={e=>setSkuSearch(e.target.value)} placeholder="Search SKUs..."
+              className="custom-input" style={{padding:'6px 12px', fontSize:12, borderRadius:8, border:'1px solid var(--border-strong)', outline:'none', background:'var(--bg-card)', color:'var(--text-primary)', width: isMobile ? '100%' : '180px'}}/>
+          </div>
+          <div style={{overflowX:'auto'}}>
+            <table style={{width:'100%', borderCollapse:'collapse', fontSize:11}}>
+              <thead>
+                <tr style={{background:'var(--bg-hover)', borderBottom:'1px solid var(--border-color)'}}>
+                  <th style={{padding:'8px 12px', textAlign:'left', color:'var(--text-light)', fontWeight:600}}>Ingredient Name</th>
+                  <th style={{padding:'8px 12px', textAlign:'left', color:'var(--text-light)', fontWeight:600}}>Category</th>
+                  <th style={{padding:'8px 12px', textAlign:'right', color:'var(--text-light)', fontWeight:600}}>Direct Usage</th>
+                  <th style={{padding:'8px 12px', textAlign:'right', color:'var(--text-light)', fontWeight:600}}>Indirect Usage</th>
+                  <th style={{padding:'8px 12px', textAlign:'right', color:'var(--text-light)', fontWeight:600}}>Total Usage Count</th>
+                  <th style={{padding:'8px 12px', textAlign:'right', color:'var(--text-light)', fontWeight:600}}>Avg Qty used</th>
+                  <th style={{padding:'8px 12px', textAlign:'right', color:'var(--text-light)', fontWeight:600}}>Total Cost contribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedSkus.filter(s => s.rm.name.toLowerCase().includes(skuSearch.toLowerCase())).map(s => {
+                  return (
+                    <tr key={s.rm.id} style={{borderBottom:'1px solid var(--border-color)'}}>
+                      <td style={{padding:'8px 12px', fontWeight:700, color:'var(--text-primary)'}}>{s.rm.name}</td>
+                      <td style={{padding:'8px 12px', color:'var(--text-muted)'}}>{s.rm.category || '—'}</td>
+                      <td style={{padding:'8px 12px', textAlign:'right', color:'var(--text-secondary)'}}>{s.directCount} recipes</td>
+                      <td style={{padding:'8px 12px', textAlign:'right', color:'var(--text-secondary)'}}>{s.indirectCount} recipes</td>
+                      <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, color:'var(--primary)'}}>{s.totalCount} recipes</td>
+                      <td style={{padding:'8px 12px', textAlign:'right', color:'var(--text-muted)'}}>{s.avgQty.toFixed(1)}{s.rm.usage_unit}</td>
+                      <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, color:'var(--text-primary)'}}>{fc(s.totalCost)}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Similar Dishes Expanded Report ── */}
+      {similarExpanded && (
+        <div className="glass-panel" style={{borderRadius:16, padding:20, marginBottom:24}}>
+          <h4 style={{fontSize:13, fontWeight:800, color:'var(--text-primary)', marginBottom:16}}>Overlapping Recipe Variant Margins</h4>
+          {similarDishes.length === 0 ? (
+            <div style={{fontSize:12, color:'var(--text-light)', textAlign:'center', padding:'12px 0'}}>No menu items sharing above 60% ingredients found.</div>
+          ) : (
+            <div style={{display:'flex', flexDirection:'column', gap:20}}>
+              {similarDishes.map((group, idx) => {
+                const pA = calcPricing(group.item, rms, ints, pc)
+                const itemsToCompare = [
+                  { item: group.item, p: pA, matchPct: 100 },
+                  ...group.matches.map(m => ({ item: m.item, p: calcPricing(m.item, rms, ints, pc), matchPct: Math.round(m.similarity * 100) }))
+                ]
+
+                const bestItem = [...itemsToCompare].sort((a,b) => {
+                  if (a.p.pct !== b.p.pct) return a.p.pct - b.p.pct
+                  return (b.p.sp - b.p.food) - (a.p.sp - a.p.food)
+                })[0]
+
+                return (
+                  <div key={idx} style={{border:'1px solid var(--border-color)', borderRadius:12, padding:14, background:'var(--bg-hover)'}}>
+                    <div style={{fontSize:12, fontWeight:700, color:'var(--text-primary)', marginBottom:10}}>
+                      Variants similar to <span style={{color:'var(--primary)'}}>{group.item.name}</span>
+                    </div>
+                    <div style={{overflowX:'auto'}}>
+                      <table style={{width:'100%', borderCollapse:'collapse', fontSize:11}}>
+                        <thead>
+                          <tr style={{borderBottom:'1px solid var(--border-color)'}}>
+                            <th style={{padding:'6px 10px', textAlign:'left', color:'var(--text-light)'}}>Dish Name</th>
+                            <th style={{padding:'6px 10px', textAlign:'right', color:'var(--text-light)'}}>Ingredient Overlap</th>
+                            <th style={{padding:'6px 10px', textAlign:'right', color:'var(--text-light)'}}>Food Cost %</th>
+                            <th style={{padding:'6px 10px', textAlign:'right', color:'var(--text-light)'}}>Dine-In Price</th>
+                            <th style={{padding:'6px 10px', textAlign:'right', color:'var(--text-light)'}}>Profit Margin</th>
+                            <th style={{padding:'6px 10px', textAlign: 'center', color:'var(--text-light)'}}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {itemsToCompare.map(c => {
+                            const isBest = c.item.id === bestItem.item.id
+                            return (
+                              <tr key={c.item.id} style={{borderBottom:'1px solid var(--border-color)', lastChild: { border: 0 }}}>
+                                <td style={{padding:'8px 10px', fontWeight:700, color:'var(--text-primary)'}}>{c.item.name}</td>
+                                <td style={{padding:'8px 10px', textAlign:'right', color:'var(--text-muted)'}}>{c.matchPct}%</td>
+                                <td style={{padding:'8px 10px', textAlign:'right', fontWeight:600}}><FCBadge pct={c.p.pct} threshold={threshold}/></td>
+                                <td style={{padding:'8px 10px', textAlign:'right', color:'var(--text-secondary)'}}>{fc(c.p.sp)}</td>
+                                <td style={{padding:'8px 10px', textAlign:'right', fontWeight:700, color:'#10b981'}}>{fc(c.p.sp - c.p.food)}</td>
+                                <td style={{padding:'8px 10px', textAlign:'center'}}>
+                                  {isBest ? <Bdg ch="Recommended Variant" c="green"/> : <span style={{fontSize:10, color:'var(--text-light)'}}>—</span>}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{fontWeight:700,fontSize:13,color:'var(--text-secondary)',marginBottom:12}}>All Menu Items — Pricing Overview</div>
       {pricings.length===0?(
         <div style={{textAlign:'center',padding:'64px 0',color:'var(--text-light)',border:'2px dashed var(--border-color)',borderRadius:16,fontSize:14}}>
@@ -526,7 +758,7 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
 // ─────────────────────────────────────────────────────────
 // RAW MATERIALS PAGE
 // ─────────────────────────────────────────────────────────
-export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCustomCat}) => {
+export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCustomCat, pinnedItems, togglePin}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
@@ -644,7 +876,7 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCusto
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'var(--bg-hover)'}}>
-                {['Name & Category','Type','Buy Unit','Pack Cost','Qty / Pack','Usage Unit','Unit Cost',''].map(h=>(
+                {['','Name & Category','Type','Buy Unit','Pack Cost','Qty / Pack','Usage Unit','Unit Cost',''].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'var(--text-light)',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -653,6 +885,11 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCusto
               {filtered.map(rm=>(
                 <tr key={rm.id} style={{borderTop:'1px solid var(--border-color)'}}
                   onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                  <td style={{padding:'10px 14px', width: 30}}>
+                    <button onClick={()=>togglePin('rms', rm.id)} style={{background:'none', border:'none', cursor:'pointer', color:pinnedItems?.rms?.includes(rm.id)?'var(--primary)':'var(--text-light)', display:'flex'}}>
+                      <Pin size={12} fill={pinnedItems?.rms?.includes(rm.id)?'var(--primary)':'none'}/>
+                    </button>
+                  </td>
                   <td style={{padding:'10px 14px'}}>
                     <div style={{fontWeight:700,color:'var(--text-primary)'}}>{rm.name}</div>
                     <div style={{fontSize:11,color:'var(--text-light)'}}>{[rm.category,rm.sub_category].filter(Boolean).join(' · ')}</div>
@@ -695,7 +932,7 @@ export const RMPage = ({rms, setRms, logEvent, profile, pc, customCats, addCusto
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATES PAGE
 // ─────────────────────────────────────────────────────────
-export const IntPage = ({ints, setInts, rms, logEvent, profile, pc, customCats, addCustomCat}) => {
+export const IntPage = ({ints, setInts, rms, setRms, logEvent, profile, pc, customCats, addCustomCat, pinnedItems, togglePin}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal] = useState(null)
   const [q, setQ]         = useState('')
@@ -816,7 +1053,12 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc, customCats, 
               <div key={it.id} className="glass-panel hover-scale" style={{borderRadius:14,padding:'14px 18px'}}>
                 <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'stretch' : 'flex-start',justifyContent:'space-between',gap: 12}}>
                   <div>
-                    <div style={{fontWeight:700,fontSize:14,color:'var(--text-primary)'}}>{it.name}</div>
+                    <div style={{display:'flex', alignItems:'center', gap:8}}>
+                      <div style={{fontWeight:700,fontSize:14,color:'var(--text-primary)'}}>{it.name}</div>
+                      <button onClick={()=>togglePin('ints', it.id)} style={{background:'none', border:'none', cursor:'pointer', color:pinnedItems?.ints?.includes(it.id)?'var(--primary)':'var(--text-light)', display:'flex', padding: 4}}>
+                        <Pin size={11} fill={pinnedItems?.ints?.includes(it.id)?'var(--primary)':'none'}/>
+                      </button>
+                    </div>
                     <div style={{fontSize:12,color:'var(--text-light)',marginTop:2}}>{it.category||'No category'} · {it.ingredients.length} ingredient{it.ingredients.length!==1?'s':''}</div>
                   </div>
                   <div style={{display:'flex',gap:14,alignItems:'center',justifyContent: isMobile ? 'space-between' : 'flex-end',marginTop: isMobile ? 8 : 0}}>
@@ -847,7 +1089,7 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc, customCats, 
         </div>
       )}
       {modal==='import' && <BatchImportIntModal rms={rms} ints={ints} onSave={saveBulk} onClose={()=>setModal(null)}/>}
-      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <IntModal inter={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} setRms={setRms} ints={ints} setInts={setInts} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
     </div>
   )
 }
@@ -855,7 +1097,7 @@ export const IntPage = ({ints, setInts, rms, logEvent, profile, pc, customCats, 
 // ─────────────────────────────────────────────────────────
 // MENU ITEMS PAGE
 // ─────────────────────────────────────────────────────────
-export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile, customCats, addCustomCat}) => {
+export const MIPage = ({mis, setMis, rms, setRms, ints, setInts, pc, logEvent, profile, customCats, addCustomCat, pinnedItems, togglePin}) => {
   const { confirm, showToast } = useUI()
   const [modal, setModal]   = useState(null)
   const [q, setQ]           = useState('')
@@ -998,7 +1240,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile, customCat
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:12,minWidth: 800}}>
             <thead>
               <tr style={{background:'var(--bg-hover)'}}>
-                {['Item','Category','Type','Food Cost','Dine-In Price','Takeaway Price','Delivery Price','Dine-In FC%','Takeaway FC%','Delivery FC%',''].map(h=>(
+                {['','Item','Category','Type','Food Cost','Dine-In Price','Takeaway Price','Delivery Price','Dine-In FC%','Takeaway FC%','Delivery FC%',''].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontWeight:600,color:'var(--text-light)',fontSize:11,whiteSpace:'nowrap'}}>{h}</th>
                 ))}
               </tr>
@@ -1007,6 +1249,11 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile, customCat
               {filtered.map(m=>(
                 <tr key={m.id} style={{borderTop:'1px solid var(--border-color)'}}
                   onMouseOver={e=>e.currentTarget.style.background='var(--bg-hover)'} onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                  <td style={{padding:'10px 14px', width: 30}}>
+                    <button onClick={()=>togglePin('mis', m.id)} style={{background:'none', border:'none', cursor:'pointer', color:pinnedItems?.mis?.includes(m.id)?'var(--primary)':'var(--text-light)', display:'flex'}}>
+                      <Pin size={12} fill={pinnedItems?.mis?.includes(m.id)?'var(--primary)':'none'}/>
+                    </button>
+                  </td>
                   <td style={{padding:'10px 14px'}}>
                     <div style={{fontWeight:700,color:'var(--text-primary)'}}>{m.name}</div>
                     {m.sub_category&&<div style={{fontSize:11,color:'var(--text-light)'}}>{m.sub_category}</div>}
@@ -1038,7 +1285,7 @@ export const MIPage = ({mis, setMis, rms, ints, pc, logEvent, profile, customCat
         </div>
       )}
       {modal==='import' && <BatchImportMIModal rms={rms} ints={ints} mis={mis} onSave={saveBulk} onClose={()=>setModal(null)} pc={pc}/>}
-      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} ints={ints} pc={pc} mis={mis} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
+      {modal && modal!=='import' && <MIModal item={modal==='new'?null:modal} onSave={save} onClose={()=>setModal(null)} rms={rms} setRms={setRms} ints={ints} setInts={setInts} pc={pc} mis={mis} customCats={customCats} addCustomCat={addCustomCat} readOnly={!allowEdit}/>}
     </div>
   )
 }

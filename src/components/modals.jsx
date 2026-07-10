@@ -81,10 +81,16 @@ export const RMModal = ({rm, onSave, onClose, rms = [], customCats = {}, addCust
       </div>
       <div style={{marginTop:8}}><InfoBox color='amber'>Cost per {f.usage_unit||'usage unit'}: <strong>{fc(uc)}</strong></InfoBox></div>
  
-      <SecTitle>Nutritional Values (per 1 {f.usage_unit||'usage unit'})</SecTitle>
-      <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:10}}>
-        {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u} disabled={readOnly}/>)}
-      </div>
+      <details style={{ marginTop: 16 }}>
+        <summary style={{ fontSize: 12, fontWeight: 700, cursor: 'pointer', color: 'var(--primary)', outline: 'none' }}>
+          Show Advanced / Nutritional Values (optional)
+        </summary>
+        <div style={{ marginTop: 12 }}>
+          <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:10}}>
+            {NF.map(n=><Inp key={n.k} label={n.l} v={f[n.k]} onChange={v=>upd(n.k,parseFloat(v)||0)} type='number' min='0' step='any' unit={n.u} disabled={readOnly}/>)}
+          </div>
+        </div>
+      </details>
  
       <div style={{display:'flex',justifyContent:'flex-end',gap:8,paddingTop:16,marginTop:8,borderTop:'1px solid #f1f1f1'}}>
         <Btn ch={readOnly ? 'Close' : 'Cancel'} v='secondary' onClick={onClose}/>
@@ -101,7 +107,7 @@ export const RMModal = ({rm, onSave, onClose, rms = [], customCats = {}, addCust
 // ─────────────────────────────────────────────────────────
 // INTERMEDIATE MODAL
 // ─────────────────────────────────────────────────────────
-export const IntModal = ({inter, onSave, onClose, rms, ints, customCats = {}, addCustomCat, readOnly}) => {
+export const IntModal = ({inter, onSave, onClose, rms, setRms, ints, setInts, customCats = {}, addCustomCat, readOnly}) => {
   const blank = {id:'',name:'',category:'',ingredients:[],yield_qty:1,yield_unit:'g'}
   const [f,setF] = useState(inter?{...blank,...inter}:{...blank,id:uid()})
   const isMobile  = useIsMobile()
@@ -125,7 +131,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints, customCats = {}, ad
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
-      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints.filter(i=>i.id!==f.id)} readOnly={readOnly}/>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} setRms={setRms} ints={ints.filter(i=>i.id!==f.id)} setInts={setInts} readOnly={readOnly}/>
 
       <SecTitle>Yield (Output produced by this recipe)</SecTitle>
       <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',gap:12}}>
@@ -167,7 +173,7 @@ export const IntModal = ({inter, onSave, onClose, rms, ints, customCats = {}, ad
 // ─────────────────────────────────────────────────────────
 // MENU ITEM MODAL
 // ─────────────────────────────────────────────────────────
-export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
+export const MIModal = ({item, onSave, onClose, rms, setRms, ints, setInts, pc, mis, customCats, addCustomCat, readOnly}) => {
   const { showToast } = useUI()
   const blank = {id:'',name:'',category:'',sub_category:'',food_type:'',ingredients:[],sp_multiplier_override:null,packaging_cost_override:null,delivery_markup_override:null,selling_price_override:null,takeaway_price_override:null,delivery_price_override:null}
   const [f,setF]   = useState(item?{...blank,...item}:{...blank,id:uid()})
@@ -262,89 +268,93 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
       </div>
 
       <SecTitle>Recipe Ingredients</SecTitle>
-      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} ints={ints} readOnly={readOnly}/>
+      <IngPicker ings={f.ingredients} setIngs={v=>upd('ingredients',v)} rms={rms} setRms={setRms} ints={ints} setInts={setInts} readOnly={readOnly}/>
 
-      <SecTitle>Pricing Overrides</SecTitle>
-      <div style={{background:'var(--bg-hover)',borderRadius:12,padding:'4px 16px'}}>
-        <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
-        <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
-        <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
-          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Selling Price</span>
-          {f.selling_price_override != null ? (
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{position:'relative'}}>
-                <input type='number' value={f.selling_price_override} min='0' step='any'
-                  disabled={readOnly}
-                  onChange={e=>upd('selling_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+      <details style={{ marginTop: 16, marginBottom: 16 }}>
+        <summary style={{ fontSize: 12, fontWeight: 700, cursor: 'pointer', color: 'var(--primary)', outline: 'none' }}>
+          Show Pricing Overrides (Advanced)
+        </summary>
+        <div style={{ marginTop: 12, background:'var(--bg-hover)',borderRadius:12,padding:'4px 16px' }}>
+          <OvrField label='SP Multiplier' field='sp_multiplier' ovrKey='sp_multiplier_override' unit='×' isX/>
+          <OvrField label='Packaging Cost' field='packaging_cost' ovrKey='packaging_cost_override' unit='₹'/>
+          <OvrField label='Delivery Markup' field='delivery_markup' ovrKey='delivery_markup_override' unit='%'/>
+          <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
+            <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Selling Price</span>
+            {f.selling_price_override != null ? (
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{position:'relative'}}>
+                  <input type='number' value={f.selling_price_override} min='0' step='any'
+                    disabled={readOnly}
+                    onChange={e=>upd('selling_price_override',parseFloat(e.target.value)||0)}
+                    style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
+                  <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+                </div>
+                {!readOnly && (
+                  <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                    <RotateCcw size={11}/> Reset
+                  </button>
+                )}
               </div>
-              {!readOnly && (
-                <button onClick={()=>upd('selling_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                  <RotateCcw size={11}/> Reset
-                </button>
-              )}
-            </div>
-          ) : (
-            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_sp)}</span>
-              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              {!readOnly && <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
-            </div>
-          )}
-        </div>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
-          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Takeaway Price</span>
-          {f.takeaway_price_override != null ? (
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{position:'relative'}}>
-                <input type='number' value={f.takeaway_price_override} min='0' step='any'
-                  disabled={readOnly}
-                  onChange={e=>upd('takeaway_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+            ) : (
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+                <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_sp)}</span>
+                <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+                {!readOnly && <button onClick={()=>upd('selling_price_override',sugg_sp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
               </div>
-              {!readOnly && (
-                <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                  <RotateCcw size={11}/> Reset
-                </button>
-              )}
-            </div>
-          ) : (
-            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_tp)}</span>
-              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              {!readOnly && <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
-            </div>
-          )}
-        </div>
-        <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
-          <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Delivery Price</span>
-          {f.delivery_price_override != null ? (
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <div style={{position:'relative'}}>
-                <input type='number' value={f.delivery_price_override} min='0' step='any'
-                  disabled={readOnly}
-                  onChange={e=>upd('delivery_price_override',parseFloat(e.target.value)||0)}
-                  style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
-                <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+            )}
+          </div>
+          <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0',borderBottom:'1px solid var(--border-color)'}}>
+            <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Takeaway Price</span>
+            {f.takeaway_price_override != null ? (
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{position:'relative'}}>
+                  <input type='number' value={f.takeaway_price_override} min='0' step='any'
+                    disabled={readOnly}
+                    onChange={e=>upd('takeaway_price_override',parseFloat(e.target.value)||0)}
+                    style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
+                  <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+                </div>
+                {!readOnly && (
+                  <button onClick={()=>upd('takeaway_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                    <RotateCcw size={11}/> Reset
+                  </button>
+                )}
               </div>
-              {!readOnly && (
-                <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
-                  <RotateCcw size={11}/> Reset
-                </button>
-              )}
-            </div>
-          ) : (
-            <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
-              <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_dp)}</span>
-              <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
-              {!readOnly && <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
-            </div>
-          )}
+            ) : (
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+                <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_tp)}</span>
+                <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+                {!readOnly && <button onClick={()=>upd('takeaway_price_override',sugg_tp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
+              </div>
+            )}
+          </div>
+          <div style={{display:'flex',flexDirection: isMobile ? 'column' : 'row',alignItems: isMobile ? 'flex-start' : 'center',gap: isMobile ? 6 : 12,padding:'8px 0'}}>
+            <span style={{fontSize:12,color:'var(--text-light)',width:150,flexShrink:0}}>Custom Delivery Price</span>
+            {f.delivery_price_override != null ? (
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{position:'relative'}}>
+                  <input type='number' value={f.delivery_price_override} min='0' step='any'
+                    disabled={readOnly}
+                    onChange={e=>upd('delivery_price_override',parseFloat(e.target.value)||0)}
+                    style={{width:90,border:'2px solid var(--primary)',borderRadius:6,padding:'4px 28px 4px 8px',fontSize:13,outline:'none',color:'var(--text-primary)',background:readOnly?'var(--bg-hover)':'var(--bg-card)'}}/>
+                  <span style={{position:'absolute',right:6,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'var(--text-light)'}}>₹</span>
+                </div>
+                {!readOnly && (
+                  <button onClick={()=>upd('delivery_price_override',null)} style={{display:'flex',alignItems:'center',gap:4,fontSize:11,color:'var(--text-light)',border:'none',background:'none',cursor:'pointer'}}>
+                    <RotateCcw size={11}/> Reset
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap: 'wrap'}}>
+                <span style={{fontSize:13,fontWeight:700,color:'var(--text-muted)'}}>{fc(sugg_dp)}</span>
+                <span style={{fontSize:11,color:'var(--text-light)'}}>Inherited from cost markup</span>
+                {!readOnly && <button onClick={()=>upd('delivery_price_override',sugg_dp)} style={{fontSize:11,color:'var(--primary)',fontWeight:700,border:'none',background:'none',cursor:'pointer'}}>Override</button>}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </details>
 
       {f.ingredients.length>0&&(
         <>
@@ -458,15 +468,21 @@ export const MIModal = ({item, onSave, onClose, rms, ints, pc, readOnly}) => {
         </div>
       </div>
 
-          <SecTitle>Total Nutrition (per serving)</SecTitle>
-          <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
-            {NF.map(n=>(
-              <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
-                <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
-                <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{(nut[n.k]||0).toFixed(1)}<span style={{fontSize:10,color:'#9ca3af',fontWeight:400,marginLeft:2}}>{n.u}</span></div>
+          <details style={{ marginTop: 16 }}>
+            <summary style={{ fontSize: 12, fontWeight: 700, cursor: 'pointer', color: 'var(--primary)', outline: 'none' }}>
+              Show Nutritional Information (optional)
+            </summary>
+            <div style={{ marginTop: 12 }}>
+              <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
+                {NF.map(n=>(
+                  <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}}>
+                    <div style={{fontSize:11,color:'#9ca3af'}}>{n.l}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:'#374151'}}>{(nut[n.k]||0).toFixed(1)}<span style={{fontSize:10,color:'#9ca3af',fontWeight:400,marginLeft:2}}>{n.u}</span></div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          </details>
         </>
       )}
 

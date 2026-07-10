@@ -110,3 +110,117 @@ export const calcPricing = (mi, rms, ints, pc) => {
     delivery_fc_pct: delivery_pct 
   }
 }
+
+export const getRmUsageDetails = (rms, ints, mis) => {
+  const resolveInt = (it, currentMultiplier = 1, resolved = {}) => {
+    if (!it || !it.ingredients) return resolved
+    const yieldQty = it.yield_qty || 1
+    it.ingredients.forEach(ing => {
+      const qtyInYield = (ing.qty || 0) * currentMultiplier / yieldQty
+      if (ing.type === 'raw') {
+        resolved[ing.id] = (resolved[ing.id] || 0) + qtyInYield
+      } else {
+        const nestedIt = ints.find(i => i.id === ing.id)
+        if (nestedIt) {
+          resolveInt(nestedIt, qtyInYield, resolved)
+        }
+      }
+    })
+    return resolved
+  }
+
+  const intRmMap = {}
+  ints.forEach(it => {
+    intRmMap[it.id] = resolveInt(it, 1, {})
+  })
+
+  const miRmMap = {}
+  mis.forEach(mi => {
+    const resolved = {}
+    ;(mi.ingredients || []).forEach(ing => {
+      if (ing.type === 'raw') {
+        resolved[ing.id] = (resolved[ing.id] || 0) + (ing.qty || 0)
+      } else {
+        const subRms = intRmMap[ing.id] || {}
+        Object.entries(subRms).forEach(([rmId, qtyPerUnit]) => {
+          resolved[rmId] = (resolved[rmId] || 0) + (qtyPerUnit * (ing.qty || 0))
+        })
+      }
+    })
+    miRmMap[mi.id] = resolved
+  })
+
+  const usage = {}
+  rms.forEach(rm => {
+    let directCount = 0
+    let indirectCount = 0
+    let totalCount = 0
+    let totalQty = 0
+    
+    mis.forEach(mi => {
+      const resolvedRms = miRmMap[mi.id] || {}
+      const qty = resolvedRms[rm.id] || 0
+      if (qty > 0) {
+        totalQty += qty
+        totalCount++
+        
+        const isDirect = (mi.ingredients || []).some(ing => ing.type === 'raw' && ing.id === rm.id)
+        const isIndirect = (mi.ingredients || []).some(ing => {
+          if (ing.type !== 'intermediate') return false
+          const subRms = intRmMap[ing.id] || {}
+          return subRms[rm.id] > 0
+        })
+        
+        if (isDirect) directCount++
+        if (isIndirect) indirectCount++
+      }
+    })
+
+    const unitCost = rmUC(rm)
+    const totalCost = totalQty * unitCost
+
+    usage[rm.id] = {
+      rm,
+      directCount,
+      indirectCount,
+      totalCount,
+      totalQty,
+      avgQty: totalCount > 0 ? (totalQty / totalCount) : 0,
+      totalCost,
+    }
+  })
+
+  return { intRmMap, miRmMap, usage }
+}
+
+export const getSimilarDishes = (mis) => {
+  const list = []
+  for (let i = 0; i < mis.length; i++) {
+    const miA = mis[i]
+    const ingsA = (miA.ingredients || []).map(x => x.id)
+    if (ingsA.length === 0) continue
+
+    const matches = []
+    for (let j = 0; j < mis.length; j++) {
+      if (i === j) continue
+      const miB = mis[j]
+      const ingsB = (miB.ingredients || []).map(x => x.id)
+      if (ingsB.length === 0) continue
+
+      const intersect = ingsA.filter(x => ingsB.includes(x))
+      const union = Array.from(new Set([...ingsA, ...ingsB]))
+      const similarity = intersect.length / union.length
+      if (similarity > 0.6) {
+        matches.push({ item: miB, similarity })
+      }
+    }
+    
+    if (matches.length > 0) {
+      list.push({
+        item: miA,
+        matches: matches.sort((a, b) => b.similarity - a.similarity)
+      })
+    }
+  }
+  return list
+}

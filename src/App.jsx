@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
-  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check, User
+  LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check, User,
+  Home, GitCompare, GitBranch, Pin
 } from 'lucide-react'
 import { useShared } from './hooks/useShared.js'
 import { useIsMobile } from './hooks/useIsMobile.js'
@@ -9,12 +10,15 @@ import { Dashboard, RMPage, IntPage, MIPage, SettingsPage } from './components/p
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { UIProvider, useUI } from './context/UIContext.jsx'
 import AuthPortal from './components/AuthPortal.jsx'
+import { storage } from './lib/storage.js'
+import { HomeTab } from './components/Home.jsx'
+import { VersionCompare } from './components/VersionCompare.jsx'
 
 const getTabFromPath = () => {
   const path = window.location.pathname.replace(/^\/|\/$/g, '')
-  if (path === '' || path === 'dashboard') return 'dashboard'
-  if (['raw', 'intermediates', 'menu', 'settings'].includes(path)) return path
-  return 'dashboard'
+  if (path === '' || path === 'home') return 'home'
+  if (['dashboard', 'raw', 'intermediates', 'menu', 'settings', 'compare'].includes(path)) return path
+  return 'home'
 }
 
 export default function App() {
@@ -163,21 +167,45 @@ function ConfirmDialog() {
 function AppContent() {
   const { user, profile, org, loading: authLoading, signOut, seedSampleData, invitedEmails, inviteMember, revokeInvite } = useAuth()
   const { theme, toggleTheme } = useUI()
-  const [rms,  setRms,  rmsOk]  = useShared(SK.rm,  [], org?.id)
-  const [ints, setInts, intsOk] = useShared(SK.int, [], org?.id)
-  const [mis,  setMis,  misOk]  = useShared(SK.mi,  [], org?.id)
-  const [pc,   setPc,   pcOk]   = useShared(SK.pc,  DEFAULT_PC, org?.id)
+  const [versions, setVersions, versionsOk] = useShared('mm_versions', [{ id: 'working_draft', label: 'Working Draft', createdAt: new Date().toISOString() }], org?.id)
+  const [activeVersionId, setActiveVersionId] = useState(() => {
+    return localStorage.getItem('mm_active_version_id') || 'working_draft'
+  })
+
+  // Synchronize dynamic keys based on selected version
+  const rmsKey = activeVersionId === 'working_draft' ? SK.rm : `${SK.rm}:${activeVersionId}`
+  const intsKey = activeVersionId === 'working_draft' ? SK.int : `${SK.int}:${activeVersionId}`
+  const misKey = activeVersionId === 'working_draft' ? SK.mi : `${SK.mi}:${activeVersionId}`
+  const pcKey = activeVersionId === 'working_draft' ? SK.pc : `${SK.pc}:${activeVersionId}`
+
+  const [rms,  setRms,  rmsOk]  = useShared(rmsKey,  [], org?.id)
+  const [ints, setInts, intsOk] = useShared(intsKey, [], org?.id)
+  const [mis,  setMis,  misOk]  = useShared(misKey,  [], org?.id)
+  const [pc,   setPc,   pcOk]   = useShared(pcKey,  DEFAULT_PC, org?.id)
   const [activityLog, setActivityLog, activityOk] = useShared('mm_activity_log', [], org?.id)
   const [cardOrder, setCardOrder, orderOk] = useShared(SK.layout, ['ingredients', 'menu', 'avg_cost', 'alerts'], org?.id)
   const [chartOrder, setChartOrder, chartOk] = useShared(SK.layout_charts, ['costs_chart', 'dietary_chart', 'expenses_chart'], org?.id)
   const [customCats, setCustomCats, customCatsOk] = useShared(SK.custom_cats, { raw: [], int: [], menu: [], raw_sub: [], menu_sub: [] }, org?.id)
+  const [pinnedItems, setPinnedItems, pinnedOk] = useShared('mm_pinned_items', { rms: [], ints: [], mis: [] }, org?.id)
   const [tab,  setTab]          = useState(getTabFromPath)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false)
 
   const isMobile = useIsMobile()
   const authenticated = !!user && !!org
-  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk || !activityOk || !orderOk || !chartOk || !customCatsOk)
+  const loading = authenticated && (!rmsOk || !intsOk || !misOk || !pcOk || !activityOk || !orderOk || !chartOk || !customCatsOk || !versionsOk || !pinnedOk)
+
+  const handleVersionChange = (id) => {
+    setActiveVersionId(id)
+    localStorage.setItem('mm_active_version_id', id)
+  }
+
+  // Ensure activeVersionId exists in loaded versions list
+  useEffect(() => {
+    if (versionsOk && versions && !versions.some(v => v.id === activeVersionId)) {
+      handleVersionChange('working_draft')
+    }
+  }, [versions, versionsOk, activeVersionId])
 
   const addCustomCat = (type, name) => {
     if (!name || !name.trim()) return
@@ -207,6 +235,96 @@ function AppContent() {
     })
   }
 
+  const handleCloneVersion = async (sourceId, label) => {
+    const newId = 'ver_' + Date.now() + Math.random().toString(36).slice(2, 7)
+    
+    let sourceRms = []
+    let sourceInts = []
+    let sourceMis = []
+    let sourcePc = DEFAULT_PC
+
+    if (sourceId === activeVersionId) {
+      sourceRms = rms
+      sourceInts = ints
+      sourceMis = mis
+      sourcePc = pc
+    } else {
+      const rKey = sourceId === 'working_draft' ? SK.rm : `${SK.rm}:${sourceId}`
+      const iKey = sourceId === 'working_draft' ? SK.int : `${SK.int}:${sourceId}`
+      const mKey = sourceId === 'working_draft' ? SK.mi : `${SK.mi}:${sourceId}`
+      const pKey = sourceId === 'working_draft' ? SK.pc : `${SK.pc}:${sourceId}`
+
+      const [rRaw, iRaw, mRaw, pRaw] = await Promise.all([
+        storage.get(rKey, org.id),
+        storage.get(iKey, org.id),
+        storage.get(mKey, org.id),
+        storage.get(pKey, org.id),
+      ])
+
+      sourceRms = rRaw ? JSON.parse(rRaw) : []
+      sourceInts = iRaw ? JSON.parse(iRaw) : []
+      sourceMis = mRaw ? JSON.parse(mRaw) : []
+      sourcePc = pRaw ? JSON.parse(pRaw) : DEFAULT_PC
+    }
+
+    const suffix = `:${newId}`
+    await Promise.all([
+      storage.set(SK.rm + suffix, JSON.stringify(sourceRms), org.id),
+      storage.set(SK.int + suffix, JSON.stringify(sourceInts), org.id),
+      storage.set(SK.mi + suffix, JSON.stringify(sourceMis), org.id),
+      storage.set(SK.pc + suffix, JSON.stringify(sourcePc), org.id),
+    ])
+
+    try {
+      localStorage.setItem(`${SK.rm}:${newId}:${org.id}`, JSON.stringify(sourceRms))
+      localStorage.setItem(`${SK.int}:${newId}:${org.id}`, JSON.stringify(sourceInts))
+      localStorage.setItem(`${SK.mi}:${newId}:${org.id}`, JSON.stringify(sourceMis))
+      localStorage.setItem(`${SK.pc}:${newId}:${org.id}`, JSON.stringify(sourcePc))
+    } catch (e) {
+      console.warn('[handleCloneVersion] localStorage cache save error:', e)
+    }
+
+    const newVersion = { id: newId, label, createdAt: new Date().toISOString() }
+    setVersions(prev => [...prev, newVersion])
+    handleVersionChange(newId)
+    logEvent('Cloned Version', 'Menu Version', label, `Created as a clone of version: ${versions.find(v=>v.id===sourceId)?.label || sourceId}`)
+  }
+
+  const handleDeleteVersion = async (versionId) => {
+    if (versionId === 'working_draft') return
+    if (activeVersionId === versionId) {
+      handleVersionChange('working_draft')
+    }
+    
+    setVersions(prev => prev.filter(v => v.id !== versionId))
+
+    const suffix = `:${versionId}`
+    Promise.all([
+      storage.delete(SK.rm + suffix, org.id),
+      storage.delete(SK.int + suffix, org.id),
+      storage.delete(SK.mi + suffix, org.id),
+      storage.delete(SK.pc + suffix, org.id),
+    ]).catch(e => console.warn('[handleDeleteVersion] Supabase delete error:', e))
+
+    try {
+      localStorage.removeItem(`${SK.rm}:${versionId}:${org.id}`)
+      localStorage.removeItem(`${SK.int}:${versionId}:${org.id}`)
+      localStorage.removeItem(`${SK.mi}:${versionId}:${org.id}`)
+      localStorage.removeItem(`${SK.pc}:${versionId}:${org.id}`)
+    } catch (e) {}
+
+    logEvent('Deleted Version', 'Menu Version', versionId, `Deleted menu version and cleared data`)
+  }
+
+  const togglePin = (type, id) => {
+    setPinnedItems(prev => {
+      const current = prev || { rms: [], ints: [], mis: [] }
+      const list = current[type] || []
+      const newList = list.includes(id) ? list.filter(x => x !== id) : [...list, id]
+      return { ...current, [type]: newList }
+    })
+  }
+
   useEffect(() => {
     const handlePopState = () => {
       setTab(getTabFromPath())
@@ -216,7 +334,7 @@ function AppContent() {
   }, [])
 
   const handleTabSelect = (id) => {
-    const targetPath = id === 'dashboard' ? '/' : `/${id}`
+    const targetPath = id === 'home' ? '/' : `/${id}`
     if (window.location.pathname !== targetPath) {
       window.history.pushState(null, '', targetPath)
     }
@@ -252,10 +370,12 @@ function AppContent() {
   )
 
   const NAV = [
+    {id:'home',          icon:Home,              label:'Home'},
     {id:'dashboard',     icon:LayoutDashboard,  label:'Dashboard'},
     {id:'raw',           icon:Package,           label:'Raw Materials'},
     {id:'intermediates', icon:FlaskConical,      label:'Intermediates'},
     {id:'menu',          icon:UtensilsCrossed,   label:'Menu Items'},
+    {id:'compare',       icon:GitCompare,        label:'Version Compare'},
     {id:'settings',      icon:Settings,          label:'Settings'},
   ]
 
@@ -369,6 +489,50 @@ function AppContent() {
               <X size={16} />
             </button>
           )}
+        </div>
+
+        {/* Version Picker */}
+        <div style={{padding:'0 8px 12px', borderBottom:'1px solid var(--border-color)', marginBottom:12}}>
+          <div style={{fontSize:10, fontWeight:700, color:'var(--text-light)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <span>Menu Version</span>
+            <button onClick={() => {
+              const label = prompt('Enter new version label (e.g. Summer Menu 2026):')
+              if (!label || !label.trim()) return
+              const sourceId = activeVersionId
+              handleCloneVersion(sourceId, label.trim())
+            }} style={{background:'none', border:'none', color:'var(--primary)', fontWeight:700, cursor:'pointer', fontSize:10, display:'flex', alignItems:'center', gap:2}}>
+              <GitBranch size={10}/> + Clone
+            </button>
+          </div>
+          <div style={{display:'flex', gap:4}}>
+            <select value={activeVersionId} onChange={(e) => handleVersionChange(e.target.value)}
+              style={{
+                flex: 1,
+                border: '1px solid var(--border-color)',
+                borderRadius: 8,
+                padding: '6px 8px',
+                fontSize: 12,
+                color: 'var(--text-primary)',
+                background: 'var(--bg-hover)',
+                outline: 'none',
+                cursor: 'pointer',
+                maxWidth: '100%',
+                boxSizing: 'border-box'
+              }}>
+              {versions.map(v => (
+                <option key={v.id} value={v.id}>{v.label}</option>
+              ))}
+            </select>
+            {activeVersionId !== 'working_draft' && (
+              <button onClick={async () => {
+                if (confirm(`Are you sure you want to delete version "${versions.find(v => v.id === activeVersionId)?.label}"? This cannot be undone.`)) {
+                  handleDeleteVersion(activeVersionId)
+                }
+              }} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer', display:'flex', alignItems:'center', padding:4}}>
+                <X size={14}/>
+              </button>
+            )}
+          </div>
         </div>
 
         {NAV.map(({id,icon:Icon,label})=>(
@@ -498,11 +662,13 @@ function AppContent() {
 
       {/* ── Main content ── */}
       <div style={{flex:1,padding: isMobile ? '20px 16px' : '32px 36px',marginLeft: isMobile ? 0 : 220,overflowX:'hidden'}}>
-        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis} logEvent={logEvent} profile={profile} cardOrder={cardOrder} setCardOrder={setCardOrder} chartOrder={chartOrder} setChartOrder={setChartOrder}/>}
-        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat}/>}
-        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat}/>}
-        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} ints={ints} pc={pc} logEvent={logEvent} profile={profile} customCats={customCats} addCustomCat={addCustomCat}/>}
-        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent} customCats={customCats} setCustomCats={setCustomCats}/>}
+        {tab==='home'          && <HomeTab   rms={rms} ints={ints} mis={mis} setRms={setRms} setInts={setInts} setMis={setMis} customCats={customCats} addCustomCat={addCustomCat} pc={pc} pinnedItems={pinnedItems} togglePin={togglePin} onNavigate={handleTabSelect} logEvent={logEvent} profile={profile} activityLog={activityLog} />}
+        {tab==='dashboard'     && <Dashboard rms={rms} ints={ints} mis={mis} pc={pc} onNavigate={handleTabSelect} setMis={setMis} logEvent={logEvent} profile={profile} cardOrder={cardOrder} setCardOrder={setCardOrder} chartOrder={chartOrder} setChartOrder={setChartOrder} activeVersionId={activeVersionId} versions={versions} />}
+        {tab==='raw'           && <RMPage    rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat} pinnedItems={pinnedItems} togglePin={togglePin} />}
+        {tab==='intermediates' && <IntPage   ints={ints} setInts={setInts} rms={rms} setRms={setRms} logEvent={logEvent} profile={profile} pc={pc} customCats={customCats} addCustomCat={addCustomCat} pinnedItems={pinnedItems} togglePin={togglePin} />}
+        {tab==='menu'          && <MIPage    mis={mis} setMis={setMis} rms={rms} setRms={setRms} ints={ints} setInts={setInts} pc={pc} logEvent={logEvent} profile={profile} customCats={customCats} addCustomCat={addCustomCat} pinnedItems={pinnedItems} togglePin={togglePin} />}
+        {tab==='compare'       && <VersionCompare versions={versions} activeVersionId={activeVersionId} org={org} rms={rms} ints={ints} mis={mis} pc={pc} logEvent={logEvent} />}
+        {tab==='settings'      && <SettingsPage pc={pc} setPc={setPc} mis={mis} rms={rms} ints={ints} profile={profile} org={org} setRms={setRms} setInts={setInts} setMis={setMis} seedSampleData={seedSampleData} invitedEmails={invitedEmails} inviteMember={inviteMember} revokeInvite={revokeInvite} activityLog={activityLog} logEvent={logEvent} customCats={customCats} setCustomCats={setCustomCats} activeVersionId={activeVersionId} versions={versions} handleCloneVersion={handleCloneVersion} handleDeleteVersion={handleDeleteVersion} />}
       </div>
     </div>
   )
