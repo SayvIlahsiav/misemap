@@ -1,8 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { storage } from '../lib/storage.js'
 
 export const useShared = (key, def, orgId) => {
   const storageKey = orgId ? `${key}:${orgId}` : key
+  const defRef = useRef(def)
+
+  useEffect(() => {
+    defRef.current = def
+  }, [def])
 
   // Load from localStorage synchronously so the state is immediately populated
   const [d, setD] = useState(() => {
@@ -18,7 +23,7 @@ export const useShared = (key, def, orgId) => {
   // Sync state with local storage or defaults when orgId changes
   useEffect(() => {
     if (!orgId) {
-      setD(def)
+      setD(defRef.current)
       setOk(false)
       return
     }
@@ -27,13 +32,13 @@ export const useShared = (key, def, orgId) => {
       if (local) {
         setD(JSON.parse(local))
       } else {
-        setD(def)
+        setD(defRef.current)
       }
     } catch (e) {
-      setD(def)
+      setD(defRef.current)
     }
     setOk(false)
-  }, [key, orgId, storageKey, def])
+  }, [key, orgId, storageKey])
 
   // Asynchronously fetch latest data from Supabase to sync remote changes
   useEffect(() => {
@@ -53,7 +58,7 @@ export const useShared = (key, def, orgId) => {
             setD(parsed)
             localStorage.setItem(storageKey, JSON.stringify(parsed))
           } else {
-            setD(def)
+            setD(defRef.current)
           }
           setOk(true)
         }
@@ -63,7 +68,7 @@ export const useShared = (key, def, orgId) => {
       }
     })()
     return () => { active = false }
-  }, [key, orgId, storageKey, def])
+  }, [key, orgId, storageKey])
 
   // Save to both localStorage and Supabase
   const save = useCallback(async nd => {
