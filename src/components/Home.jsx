@@ -252,7 +252,9 @@ export const HomeTab = ({
           onSave={saveInt} 
           onClose={() => setModal(null)} 
           rms={rms} 
+          setRms={setRms}
           ints={ints} 
+          setInts={setInts}
           customCats={customCats} 
           addCustomCat={addCustomCat} 
         />
@@ -262,7 +264,9 @@ export const HomeTab = ({
           onSave={saveMi} 
           onClose={() => setModal(null)} 
           rms={rms} 
+          setRms={setRms}
           ints={ints} 
+          setInts={setInts}
           pc={pc} 
           mis={mis} 
         />
@@ -285,7 +289,9 @@ export const HomeTab = ({
           onSave={saveInt} 
           onClose={() => setModal(null)} 
           rms={rms} 
+          setRms={setRms}
           ints={ints} 
+          setInts={setInts}
           customCats={customCats} 
           addCustomCat={addCustomCat} 
         />
@@ -296,7 +302,9 @@ export const HomeTab = ({
           onSave={saveMi} 
           onClose={() => setModal(null)} 
           rms={rms} 
+          setRms={setRms}
           ints={ints} 
+          setInts={setInts}
           pc={pc} 
           mis={mis} 
         />

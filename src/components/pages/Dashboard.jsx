@@ -12,7 +12,7 @@ import { useIsMobile } from '../../hooks/useIsMobile.js'
 import { MIModal } from '../modals.jsx'
 import { PricingCells } from './PricingCells.jsx'
 
-export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder, activeVersionId, versions}) => {
+export const Dashboard = ({rms, setRms, ints, setInts, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder, activeVersionId, versions}) => {
   const { showToast } = useUI()
   const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
@@ -728,7 +728,9 @@ export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, se
           onSave={save}
           onClose={() => setModal(null)}
           rms={rms}
+          setRms={setRms}
           ints={ints}
+          setInts={setInts}
           pc={pc}
           mis={mis}
         />
