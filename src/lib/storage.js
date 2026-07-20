@@ -18,9 +18,7 @@ if (!supabaseUrl || !supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    lock: {
-      acquire: async () => ({ release: async () => {} }),
-    },
+    lock: async (name, acquireTimeout, fn) => await fn(),
   },
 })
 
