@@ -235,7 +235,7 @@ export const IngPicker = ({ings, setIngs, rms, setRms, ints, setInts, noInts=fal
                 <>
                   {filtered.length===0&&(
                     <div style={{padding:'12px 16px', display:'flex', flexDirection:'column', gap:8}}>
-                      <div style={{fontSize:13,color:'var(--text-light)'}}>No items found for "{q}"</div>
+                      <div style={{fontSize:13,color:'var(--text-light)'}}>No items found for &quot;{q}&quot;</div>
                       <div style={{display:'flex', gap:8, marginTop:4}}>
                         <button onClick={() => startInlineCreate('raw')} style={{
                           background: 'var(--primary)',

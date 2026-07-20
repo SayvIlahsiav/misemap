@@ -94,7 +94,9 @@ export const BatchImportModal = ({rms, onSave, onClose}) => {
     let updated = [...rms]
     parsed.forEach(item => {
       const idx = updated.findIndex(r => (r?.name || '').toLowerCase() === (item.name || '').toLowerCase())
-      const { warnings, isDuplicate, ...cleanItem } = item
+      const cleanItem = { ...item }
+      delete cleanItem.warnings
+      delete cleanItem.isDuplicate
       if (idx !== -1) {
         updated[idx] = { ...updated[idx], ...cleanItem }
       } else {

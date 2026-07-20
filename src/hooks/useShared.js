@@ -33,7 +33,7 @@ export const useShared = (key, def, orgId) => {
       setD(def)
     }
     setOk(false)
-  }, [key, orgId, storageKey])
+  }, [key, orgId, storageKey, def])
 
   // Asynchronously fetch latest data from Supabase to sync remote changes
   useEffect(() => {
@@ -63,7 +63,7 @@ export const useShared = (key, def, orgId) => {
       }
     })()
     return () => { active = false }
-  }, [key, orgId, storageKey])
+  }, [key, orgId, storageKey, def])
 
   // Save to both localStorage and Supabase
   const save = useCallback(async nd => {

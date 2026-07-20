@@ -48,7 +48,7 @@ export const IntModal = ({inter, onSave, onClose, rms, setRms, ints, setInts, cu
           <SecTitle>Auto-Calculated Nutrition (per yield unit)</SecTitle>
           <div style={{display:'grid',gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)',gap:8}}>
             {NF.map(n=>(
-              <div key={n.k} style={{background:'#f9fafb',borderRadius:8,padding:'8px 10px'}} style={{background:'var(--bg-hover)',borderRadius:8,padding:'8px 10px'}}>
+              <div key={n.k} style={{background:'var(--bg-hover)',borderRadius:8,padding:'8px 10px'}}>
                 <div style={{fontSize:11,color:'var(--text-light)'}}>{n.l}</div>
                 <div style={{fontSize:13,fontWeight:700,color:'var(--text-primary)'}}>{(nut[n.k]||0).toFixed(2)}<span style={{fontSize:10,color:'var(--text-light)',fontWeight:400,marginLeft:2}}>{n.u}</span></div>
               </div>

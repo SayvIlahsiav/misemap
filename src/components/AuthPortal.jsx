@@ -313,7 +313,7 @@ export default function AuthPortal() {
     <div>
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: '#111', margin: 0 }}>Welcome to MiseMap</h2>
-        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Let's connect you with a kitchen workspace</p>
+        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Let&apos;s connect you with a kitchen workspace</p>
       </div>
 
       {onboardingMode === 'choose' && (

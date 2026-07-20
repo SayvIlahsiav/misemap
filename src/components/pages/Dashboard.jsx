@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Package, FlaskConical, UtensilsCrossed, ShieldAlert,
-  Plus, Pencil, X, Check, Copy, ChevronDown, ChevronUp, GitCompare
+  Pencil, ChevronDown, ChevronUp, GitCompare
 } from 'lucide-react'
 import { Btn, Bdg, FCBadge } from '../UIPrimitives.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -13,7 +13,7 @@ import { MIModal } from '../modals.jsx'
 import { PricingCells } from './PricingCells.jsx'
 
 export const Dashboard = ({rms, ints, mis, pc, onNavigate, setMis, cardOrder, setCardOrder, chartOrder, setChartOrder, activeVersionId, versions}) => {
-  const { confirm, showToast } = useUI()
+  const { showToast } = useUI()
   const { org } = useAuth()
   const threshold = pc.global.fc_alert_threshold
   const pricings  = useMemo(()=>mis.map(m=>({...m,...calcPricing(m,rms,ints,pc)})),[mis,rms,ints,pc])

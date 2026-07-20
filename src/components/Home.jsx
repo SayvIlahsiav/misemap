@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Package, FlaskConical, UtensilsCrossed, Pin, Clock, Activity, ArrowRight } from 'lucide-react'
-import { Btn, Bdg, InfoBox } from './UIPrimitives.jsx'
+import { Btn } from './UIPrimitives.jsx'
 import { RMModal, IntModal, MIModal } from './modals.jsx'
-import { rmUC, intUC, miFC, calcPricing, fc } from '../utils.js'
+import { rmUC, intUC, calcPricing, fc } from '../utils.js'
 
 export const HomeTab = ({
   rms, ints, mis, setRms, setInts, setMis,
   customCats, addCustomCat, pc, pinnedItems, togglePin,
-  onNavigate, logEvent, profile, activityLog
+  onNavigate, logEvent, activityLog
 }) => {
   const [modal, setModal] = useState(null)
   

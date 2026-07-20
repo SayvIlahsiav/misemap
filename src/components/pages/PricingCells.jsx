@@ -1,4 +1,3 @@
-import React from 'react'
 import { fc } from '../../utils.js'
 
 export const PricingCells = ({ m }) => {

@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { Modal, Btn } from '../UIPrimitives.jsx'
-import { useIsMobile } from '../../hooks/useIsMobile.js'
 
 export const CloneVersionModal = ({ sourceId, versions, onClose, onClone }) => {
   const sourceLabel = versions.find(v => v.id === sourceId)?.label || sourceId
   const [label, setLabel] = useState('')
-  const isMobile = useIsMobile()
 
   return (
     <Modal title={`Clone Version`} onClose={onClose}>

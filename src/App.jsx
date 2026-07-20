@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check, User,
-  Home, GitCompare, GitBranch, Pin
+  Home, GitCompare, GitBranch
 } from 'lucide-react'
 import { useShared } from './hooks/useShared.js'
 import { useIsMobile } from './hooks/useIsMobile.js'
@@ -317,7 +317,9 @@ function AppContent() {
       localStorage.removeItem(`${SK.int}:${versionId}:${org?.id || 'local'}`)
       localStorage.removeItem(`${SK.mi}:${versionId}:${org?.id || 'local'}`)
       localStorage.removeItem(`${SK.pc}:${versionId}:${org?.id || 'local'}`)
-    } catch (e) {}
+    } catch (e) {
+      // ignore localStorage errors
+    }
 
     logEvent('Deleted Version', 'Menu Version', versionId, `Deleted menu version and cleared data`)
   }

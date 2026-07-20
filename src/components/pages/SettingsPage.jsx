@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { supabase } from '../../lib/storage.js'
-import { Btn, Inp, Label, InfoBox, Bdg } from '../UIPrimitives.jsx'
+import { Btn, Inp, Label, InfoBox } from '../UIPrimitives.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useUI } from '../../context/UIContext.jsx'
-import { fc, rmUC, intUC, ingCost } from '../../utils.js'
 import { CascadeModal } from '../modals.jsx'
 import { useIsMobile } from '../../hooks/useIsMobile.js'
 
-const CategoryList = ({items, setItems, type, customCats, setCustomCats, logType, logEvent, isMobile, isSub}) => {
+const CategoryList = ({items, setItems, type, customCats, setCustomCats, logType, logEvent, isSub}) => {
   const { showToast, confirm } = useUI()
   const [editingCat, setEditingCat] = useState(null)
   const [editVal, setEditVal] = useState('')
@@ -197,7 +196,7 @@ export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, s
 
   const allowSettingsEdit = profile?.role === 'owner' || pc?.permissions?.allow_override_settings !== false
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     if (profile?.role !== 'owner' || !org?.id) return
     setRequestsLoading(true)
     try {
@@ -213,11 +212,11 @@ export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, s
     } finally {
       setRequestsLoading(false)
     }
-  }
+  }, [org?.id, profile?.role])
 
   useEffect(() => {
     loadRequests()
-  }, [org?.id, profile?.role])
+  }, [loadRequests])
 
   const handleUpdateOrg = async () => {
     setSavingOrg(true)
@@ -521,7 +520,9 @@ export const SettingsPage = ({pc, setPc, mis, rms, ints, profile, org, setRms, s
                   try {
                     await inviteMember(email)
                     e.target.reset()
-                  } catch(err) {}
+                  } catch(err) {
+                    showToast(err.message || 'Failed to send invite', 'error')
+                  }
                 }} style={{ display: 'flex', gap: 10 }}>
                   <input
                     type="email"

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { GitCompare, ArrowRight, AlertTriangle, TrendingUp, Check, Info } from 'lucide-react'
-import { Btn, Bdg, InfoBox, Sel } from './UIPrimitives.jsx'
+import { useState, useEffect, useMemo } from 'react'
+import { GitCompare, ArrowRight, AlertTriangle, TrendingUp, Check } from 'lucide-react'
+import { Btn, Sel } from './UIPrimitives.jsx'
 import { storage } from '../lib/storage.js'
 import { SK, DEFAULT_PC } from '../constants.js'
 import { rmUC, calcPricing, fc, fp } from '../utils.js'
@@ -19,7 +19,7 @@ export const VersionCompare = ({ versions, activeVersionId, org, rms, ints, mis,
     if (others.length > 0 && !compareId) {
       setCompareId(others[0].id)
     }
-  }, [versions, baseId])
+  }, [versions, baseId, compareId])
 
   const fetchVersionData = async (versionId) => {
     if (versionId === activeVersionId) {
@@ -202,7 +202,7 @@ export const VersionCompare = ({ versions, activeVersionId, org, rms, ints, mis,
     }
 
     return list
-  }, [comparisons, baseData, compareData])
+  }, [comparisons, baseData])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -451,7 +451,7 @@ export const VersionCompare = ({ versions, activeVersionId, org, rms, ints, mis,
       {!baseData && !loading && (
         <div style={{ padding: '80px 0', border: '2px dashed var(--border-color)', borderRadius: 16, textAlign: 'center', color: 'var(--text-light)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
           <GitCompare size={32} style={{ color: 'var(--text-muted)' }} />
-          <div>Select two menu versions above and click "Compare Menus" to audit cost drifts and margin trends.</div>
+          <div>Select two menu versions above and click &quot;Compare Menus&quot; to audit cost drifts and margin trends.</div>
         </div>
       )}
     </div>

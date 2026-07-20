@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Search, Pencil, Trash2, Eye, Pin } from 'lucide-react'
 import { Btn, Bdg } from '../UIPrimitives.jsx'
 import { useUI } from '../../context/UIContext.jsx'

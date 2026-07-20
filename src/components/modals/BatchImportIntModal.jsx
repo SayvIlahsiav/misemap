@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Upload, Download, Check, AlertTriangle } from 'lucide-react'
-import { Modal, Btn, Bdg } from '../UIPrimitives.jsx'
-import { FOOD_TYPES, FT_COLOR_MAP } from '../../constants.js'
-import { uid, fc } from '../../utils.js'
+import { Modal, Btn } from '../UIPrimitives.jsx'
+import { uid } from '../../utils.js'
 import { useIsMobile } from '../../hooks/useIsMobile.js'
 import { useUI } from '../../context/UIContext.jsx'
 
@@ -121,11 +120,17 @@ export const BatchImportIntModal = ({rms, ints, onSave, onClose}) => {
     parsed.forEach(item => {
       if (item.warnings && item.warnings.length > 0) return // Skip recipes with warnings
       const idx = updated.findIndex(i => (i?.name || '').toLowerCase() === item.name.toLowerCase())
-      const { warnings, isDuplicate, ...cleanItem } = item
+      const cleanItem = { ...item }
+      delete cleanItem.warnings
+      delete cleanItem.isDuplicate
       
       const cleanIngredients = cleanItem.ingredients
           .filter(ing => ing.id)
-          .map(({name, ...rest}) => rest)
+          .map(ing => {
+            const copy = { ...ing }
+            delete copy.name
+            return copy
+          })
         
       const finalItem = {
         ...cleanItem,
