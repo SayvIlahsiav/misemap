@@ -16,7 +16,13 @@ if (!supabaseUrl || !supabaseKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    lock: {
+      acquire: async () => ({ release: async () => {} }),
+    },
+  },
+})
 
 // ─── Key-value storage API (mirrors Claude artifact window.storage) ────────
 export const storage = {
