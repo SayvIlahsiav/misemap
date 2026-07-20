@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Package, FlaskConical, UtensilsCrossed, Settings, ChefHat, Menu, X, LogOut, Sun, Moon, Copy, Check, User,
   Home, GitCompare, GitBranch, Pin
@@ -15,20 +16,15 @@ import { HomeTab } from './components/Home.jsx'
 import { VersionCompare } from './components/VersionCompare.jsx'
 import { CloneVersionModal } from './components/modals.jsx'
 
-const getTabFromPath = () => {
-  const path = window.location.pathname.replace(/^\/|\/$/g, '')
-  if (path === '' || path === 'home') return 'home'
-  if (['dashboard', 'raw', 'intermediates', 'menu', 'settings', 'compare'].includes(path)) return path
-  return 'home'
-}
-
 export default function App() {
   return (
-    <UIProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </UIProvider>
+    <BrowserRouter>
+      <UIProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </UIProvider>
+    </BrowserRouter>
   )
 }
 
@@ -188,7 +184,15 @@ function AppContent() {
   const [chartOrder, setChartOrder, chartOk] = useShared(SK.layout_charts, ['costs_chart', 'dietary_chart', 'expenses_chart'], org?.id)
   const [customCats, setCustomCats, customCatsOk] = useShared(SK.custom_cats, { raw: [], int: [], menu: [], raw_sub: [], menu_sub: [] }, org?.id)
   const [pinnedItems, setPinnedItems, pinnedOk] = useShared('mm_pinned_items', { rms: [], ints: [], mis: [] }, org?.id)
-  const [tab,  setTab]          = useState(getTabFromPath)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const getTabFromPathname = (pathname) => {
+    const path = pathname.replace(/^\/|\/$/g, '')
+    if (path === '' || path === 'home') return 'home'
+    if (['dashboard', 'raw', 'intermediates', 'menu', 'settings', 'compare'].includes(path)) return path
+    return 'home'
+  }
+  const tab = getTabFromPathname(location.pathname)
   const [cloneModalSourceId, setCloneModalSourceId] = useState(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [mobileProfileOpen, setMobileProfileOpen] = useState(false)
@@ -327,20 +331,9 @@ function AppContent() {
     })
   }
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setTab(getTabFromPath())
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
-
   const handleTabSelect = (id) => {
     const targetPath = id === 'home' ? '/' : `/${id}`
-    if (window.location.pathname !== targetPath) {
-      window.history.pushState(null, '', targetPath)
-    }
-    setTab(id)
+    navigate(targetPath)
     setMobileMenuOpen(false)
   }
 
